@@ -1,0 +1,29 @@
+{
+    "config": {
+        "cert_type": ["pem"],
+        "logging": {
+            "C_LOG_LEVEL": "INFO",
+            "PY_LOG_LEVEL": "INFO"
+        },
+        "influxdb": {},
+        "task": [
+           {
+    	 "tick_script": "py_point_classifier.tick",
+             "task_name": "temp_classifier",
+             "udfs": [{
+                 "type": "python",
+                 "name": "py_classifier"
+             }]
+           },
+           {
+    	 "tick_script": "humidity_classifier.tick",
+             "task_name": "humidity_classifier",
+             "udfs": [{
+                 "type": "python",
+                 "name": "humidity_classifier"
+             }]
+           }
+        ]
+    },
+    "interfaces": {}
+}

@@ -1,0 +1,13 @@
+dbrp "datain"."autogen"
+
+var data0 = stream
+        |from()
+                .database('datain')
+                .retentionPolicy('autogen')
+                .measurement('point_data')
+        @temperature_classifier()
+        |influxDBOut()
+                .buffer(0)
+                .database('datain')
+                .measurement('temperature_classifier_results')
+                .retentionPolicy('autogen')
