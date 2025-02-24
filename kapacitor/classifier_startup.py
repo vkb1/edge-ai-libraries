@@ -50,30 +50,6 @@ class KapacitorClassifier():
     def __init__(self, logger):
         self.logger = logger
 
-    def start_classifier(self, udf_type, udf_name):
-        """Starts the classifier module
-        """
-        try:
-            if udf_type == "go":
-                self.logger.info("Running Go based UDF ... {0}".format(
-                    udf_name))
-                subprocess.Popen(["go", "run", "./udfs/" + udf_name + ".go",
-                                  "&"])
-            elif udf_type == "python":
-                self.logger.info("Running Python based UDF ... {}".format(
-                    udf_name))
-                subprocess.Popen(["python3", "./udfs/" + udf_name + ".py",
-                                  "&"])
-            else:
-                self.logger.error("Not a compatible type, please select "
-                                  "either go or python")
-            self.logger.info("classifier started successfully")
-            return True
-        except subprocess.CalledProcessError as err:
-            self.logger.info("Exception Occured in Starting the Classifier " +
-                             str(err))
-            return False
-
     def write_cert(self, file_name, cert):
         """Write certificate to given file path
         """
@@ -254,13 +230,6 @@ class KapacitorClassifier():
                     else:
                         error_msg = ("UDF name key is missing in config "
                                      "EXITING!!!")
-                        return error_msg, FAILURE
-
-                    if self.start_classifier(udf_type, udf_name) is True:
-                        self.logger.info("Classifier started successfully")
-                    else:
-                        error_msg = ("Classifier is not able to start. "
-                                     "Fix all the Errors & try again")
                         return error_msg, FAILURE
             else:
                 self.logger.info("Configured task has no UDF")

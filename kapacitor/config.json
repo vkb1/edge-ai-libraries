@@ -1,11 +1,5 @@
 {
     "config": {
-        "cert_type": ["pem"],
-        "logging": {
-            "C_LOG_LEVEL": "INFO",
-            "PY_LOG_LEVEL": "INFO"
-        },
-        "influxdb": {},
         "task": [{
          "tick_script": "temperature_classifier.tick",
              "task_name": "temperature_classifier",
@@ -15,6 +9,5 @@
              }]
            }
         ]
-    },
-    "interfaces": {}
+    }
 }
