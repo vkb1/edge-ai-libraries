@@ -6,7 +6,7 @@ FROM kapacitor:$KAPACITOR_VERSION
 
 # Install Python and other necessary packages
 RUN apt-get update && \
-    apt-get install -y python3 python3-pip  git && \
+    apt-get install -y python3 python3-pip python3-venv git && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -25,7 +25,13 @@ RUN groupadd $TIMESERIES_USER_NAME -g $TIMESERIES_UID && \
     useradd -r -u $TIMESERIES_UID -g $TIMESERIES_USER_NAME $TIMESERIES_USER_NAME
 
 COPY requirements.txt .
-RUN pip3 install --no-cache-dir -r requirements.txt
+COPY intel_distribution_requirements.txt .
+
+RUN /bin/bash -c "python3 -m venv idp && \
+    source idp/bin/activate && \
+    pip install -i https://software.repos.intel.com/python/pypi -r intel_distribution_requirements.txt && \
+    pip3 install -r requirements.txt"
+
 ENV PYTHONPATH $PYTHONPATH:/usr/local/lib/python${PYTHON_VERSION}/dist-packages:/app/kapacitor_python/
 
 # Adding classifier program
@@ -42,4 +48,4 @@ USER $TIMESERIES_USER_NAME
 
 HEALTHCHECK NONE
 
-ENTRYPOINT ["python3", "./classifier_startup.py"]
+CMD ["/bin/bash", "-c", "source /app/idp/bin/activate && python3 ./classifier_startup.py"]
