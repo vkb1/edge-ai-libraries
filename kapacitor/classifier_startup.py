@@ -63,11 +63,6 @@ class KapacitorClassifier():
     def read_config(self, config, secure_mode, app_name):
         """Read the configuration from etcd
         """
-        if 'influxdb' in config:
-            os.environ['KAPACITOR_INFLUXDB_0_USERNAME'] = \
-                os.environ["INFLUXDB_USERNAME"]
-            os.environ['KAPACITOR_INFLUXDB_0_PASSWORD'] = \
-                os.environ["INFLUXDB_PASSWORD"]
 
         if secure_mode:
             self.write_cert(KAPACITOR_CERT, KAPACITOR_SERVER_CERT)
@@ -285,9 +280,12 @@ def config_file_watch(observer, CONFIG_FILE):
         observer.stop()
     observer.join()
 
+log_level = os.getenv('KAPACITOR_LOGGING_LEVEL', 'INFO').upper()
+logging_level = getattr(logging, log_level, logging.INFO)
+
 # Configure logging
 logging.basicConfig(
-    level=logging.DEBUG,  # Set the log level to DEBUG
+    level=logging_level,  # Set the log level to DEBUG
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',  # Log format
 )
 
