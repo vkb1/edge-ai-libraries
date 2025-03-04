@@ -11,7 +11,6 @@ import tempfile
 import sys
 import json
 import socket
-from distutils.util import strtobool
 import shlex
 import logging
 import shutil
@@ -68,6 +67,15 @@ class KapacitorClassifier():
             self.write_cert(KAPACITOR_CERT, KAPACITOR_SERVER_CERT)
             self.write_cert(KAPACITOR_KEY, KAPACITOR_SERVER_KEY)
             self.write_cert(KAPACITOR_CA, KAPACITOR_CACERT)
+
+    def install_udf_package(self):
+        """ Install python package from udf/requirements.txt if exists
+        """
+        python_package_requirement_file = "/app/udfs/requirements.txt"
+        python_package_installation_path = "/tmp/py_package"
+        os.system(f"mkdir -p {python_package_installation_path}")
+        if os.path.isfile(python_package_requirement_file):
+            os.system(f"pip3 install -r {python_package_requirement_file} --target {python_package_installation_path}")
 
     def start_kapacitor(self,
                         config,
@@ -199,7 +207,7 @@ class KapacitorClassifier():
             time.sleep(0.0001)
             retry = retry + 1
 
-    def start_udfs(self, config):
+    def check_config(self, config):
         """Starting the udf based on the config
            read from the etcd
         """
@@ -208,27 +216,6 @@ class KapacitorClassifier():
         if 'task' not in config.keys():
             error_msg = "task key is missing in config, EXITING!!!"
             return error_msg, FAILURE
-
-        for task in config['task']:
-            if 'udfs' in task.keys():
-                for udf in task['udfs']:
-                    if 'type' in udf:
-                        udf_type = udf['type'].lower()
-                    else:
-                        error_msg = ("UDF type key is missing in config "
-                                     "Please provide go or python "
-                                     "EXITING!!!")
-                        return error_msg, FAILURE
-
-                    if 'name' in udf:
-                        udf_name = udf['name']
-                    else:
-                        error_msg = ("UDF name key is missing in config "
-                                     "EXITING!!!")
-                        return error_msg, FAILURE
-            else:
-                self.logger.info("Configured task has no UDF")
-
         return None, SUCCESS
 
     def enable_tasks(self, config, kapacitor_started, host_name, secure_mode):
@@ -322,10 +309,10 @@ def main():
                      'So exiting...')
         kapacitor_classifier.exit_with_failure_message(error_log)
 
-    msg, status = kapacitor_classifier.start_udfs(config)
+    msg, status = kapacitor_classifier.check_config(config)
     if status is FAILURE:
         kapacitor_classifier.exit_with_failure_message(msg)
-
+    kapacitor_classifier.install_udf_package()
     kapacitor_started = False
     if(kapacitor_classifier.start_kapacitor(config,
                                             host_name,

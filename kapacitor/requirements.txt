@@ -1,7 +1,5 @@
 scikit-learn-intelex==2023.1.1
 scikit-learn==1.2.2
-setuptools==70.0.0
-jsonschema==4.20.0
 protobuf==4.24.4
 watchdog==6.0.0
 modin==0.32.0

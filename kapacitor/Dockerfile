@@ -32,7 +32,7 @@ RUN /bin/bash -c "python3 -m venv idp && \
     pip install -i https://software.repos.intel.com/python/pypi -r intel_distribution_requirements.txt && \
     pip3 install -r requirements.txt"
 
-ENV PYTHONPATH $PYTHONPATH:/usr/local/lib/python${PYTHON_VERSION}/dist-packages:/app/kapacitor_python/
+ENV PYTHONPATH $PYTHONPATH:/tmp/py_package:/app/kapacitor_python/
 
 # Adding classifier program
 COPY ./udfs/ /app/udfs/
@@ -42,7 +42,7 @@ COPY config.json /app
 COPY ./tick_scripts/* /app/tick_scripts/
 COPY ./config/kapacitor*.conf /app/config/
 
-RUN apt-get remove --purge -y git python3-pip
+RUN apt-get remove --purge -y git
 
 USER $TIMESERIES_USER_NAME
 
