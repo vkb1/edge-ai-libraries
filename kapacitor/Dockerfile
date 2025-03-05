@@ -35,11 +35,9 @@ RUN /bin/bash -c "python3 -m venv idp && \
 ENV PYTHONPATH $PYTHONPATH:/tmp/py_package:/app/kapacitor_python/
 
 # Adding classifier program
-COPY ./udfs/ /app/udfs/
 COPY classifier_startup.py /app
 COPY config.json /app
-# Add tick scripts and configs
-COPY ./tick_scripts/* /app/tick_scripts/
+# Add configs
 COPY ./config/kapacitor*.conf /app/config/
 
 RUN apt-get remove --purge -y git

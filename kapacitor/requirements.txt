@@ -3,3 +3,4 @@ scikit-learn==1.2.2
 protobuf==4.24.4
 watchdog==6.0.0
 modin==0.32.0
+tomlkit==0.13.2

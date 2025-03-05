@@ -17,6 +17,7 @@ import shutil
 from threading import Thread
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+import tomlkit
 
 TEMP_KAPACITOR_DIR = tempfile.gettempdir()
 KAPACITOR_CERT = os.path.join(TEMP_KAPACITOR_DIR,
@@ -93,7 +94,7 @@ class KapacitorClassifier():
         try:
             if secure_mode:
                 # Populate the certificates for kapacitor server
-                kapacitor_conf = 'config/' + KAPACITOR_PROD
+                kapacitor_conf = '/tmp/' + KAPACITOR_PROD
 
                 os.environ["KAPACITOR_URL"] = "{}{}".format(https_scheme,
                                                             kapacitor_port)
@@ -101,7 +102,7 @@ class KapacitorClassifier():
                 os.environ["KAPACITOR_INFLUXDB_0_URLS_0"] = "{}{}".format(
                     https_scheme, influxdb_hostname_port)
             else:
-                kapacitor_conf = 'config/' + KAPACITOR_DEV
+                kapacitor_conf = '/tmp/' + KAPACITOR_DEV
                 os.environ["KAPACITOR_URL"] = "{}{}".format(http_scheme,
                                                             kapacitor_port)
                 os.environ["KAPACITOR_UNSAFE_SSL"] = "true"
@@ -299,6 +300,27 @@ def main():
     observer.start()
     watch_config_change = Thread(target=config_file_watch, args=(observer,CONFIG_FILE,))
     watch_config_change.start()
+
+    conf_file = KAPACITOR_PROD if secure_mode else KAPACITOR_DEV
+    # Copy the kapacitor conf file to the /tmp directory
+    shutil.copy("/app/config/" + conf_file, "/tmp/" + conf_file)
+    # Read the existing configuration
+    with open("/tmp/" + conf_file, 'r') as file:
+        config_data = tomlkit.parse(file.read())
+    udf_name = config['task'][0]['udfs'][0]['name']
+    udf_section = config_data.get('udf', {}).get('functions', {})
+    udf_section[udf_name] = tomlkit.table()
+
+    udf_section[udf_name]['prog'] = 'python3'
+    udf_section[udf_name]['args'] = ["-u", "/app/udfs/" + udf_name + ".py"]
+    udf_section[udf_name]['timeout'] = "60s"
+    udf_section[udf_name]['env'] = {
+        'PYTHONPATH': "/tmp/py_package:/app/kapacitor_python/:"
+    }
+
+    # Write the updated configuration back to the file
+    with open("/tmp/" + conf_file, 'w') as file:
+        file.write(tomlkit.dumps(config_data, sort_keys=False))
 
     kapacitor_classifier = KapacitorClassifier(logger)
 
