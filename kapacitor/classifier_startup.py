@@ -18,6 +18,10 @@ from threading import Thread
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import tomlkit
+import select
+import threading
+import os.path
+
 
 TEMP_KAPACITOR_DIR = tempfile.gettempdir()
 KAPACITOR_CERT = os.path.join(TEMP_KAPACITOR_DIR,
@@ -43,6 +47,22 @@ class ConfigFileEventHandler(FileSystemEventHandler):
             logger.info(f"{event.src_path} file has been modified. Exiting to restart container...")
             os._exit(1)
 
+def KapacitorDaemonLogs(logger):
+    kapacitor_log_file = "/tmp/log/kapacitor/kapacitor.log"
+    while True:
+        if os.path.isfile(kapacitor_log_file):
+            break
+        else:
+            time.sleep(1)
+    f = subprocess.Popen(['tail','-F',kapacitor_log_file],\
+                                stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+    p = select.poll()
+    p.register(f.stdout)
+    while True:
+        if p.poll(1):
+            logger.info(f.stdout.readline())
+        else:
+            time.sleep(1)
 class KapacitorClassifier():
     """Kapacitor Classifier have all the methods related to
        starting kapacitor, udf and tasks
@@ -177,10 +197,10 @@ class KapacitorClassifier():
         """
         retry_count = 5
         retry = 0
-        kap_connectivity_retry = 50
+        kap_connectivity_retry = 10
         kap_retry = 0
         while not self.kapacitor_port_open(host_name):
-            time.sleep(1)
+            time.sleep(5)
             kap_retry = kap_retry + 1
             if kap_retry > kap_connectivity_retry:
                 self.logger.error("Error connecting to Kapacitor Daemon... Restarting Kapacitor...")
@@ -254,9 +274,8 @@ class KapacitorClassifier():
             except (OSError, IOError):
                 self.logger.error("Exception Occured while removing"
                                   "kapacitor certs")
-
         while True:
-            time.sleep(10)
+            time.sleep(1)
 
 
 def config_file_watch(observer, CONFIG_FILE):
@@ -336,6 +355,8 @@ def main():
         kapacitor_classifier.exit_with_failure_message(msg)
     kapacitor_classifier.install_udf_package()
     kapacitor_started = False
+    t1 = threading.Thread(target=KapacitorDaemonLogs, args=[logger])
+    t1.start()
     if(kapacitor_classifier.start_kapacitor(config,
                                             host_name,
                                             secure_mode,
