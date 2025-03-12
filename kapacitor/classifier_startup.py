@@ -24,13 +24,6 @@ import os.path
 
 
 TEMP_KAPACITOR_DIR = tempfile.gettempdir()
-KAPACITOR_CERT = os.path.join(TEMP_KAPACITOR_DIR,
-                              "kapacitor_server_certificate.pem")
-KAPACITOR_KEY = os.path.join(TEMP_KAPACITOR_DIR, "kapacitor_server_key.pem")
-KAPACITOR_CA = os.path.join(TEMP_KAPACITOR_DIR, "ca_certificate.pem")
-KAPACITOR_CACERT = "/run/secrets/Kapacitor_Server/ca_certificate.pem"
-KAPACITOR_SERVER_KEY = "/run/secrets/Kapacitor_Server/Kapacitor_Server_server_key.pem"
-KAPACITOR_SERVER_CERT = "/run/secrets/Kapacitor_Server/Kapacitor_Server_server_certificate.pem"
 KAPACITOR_DEV = "kapacitor_devmode.conf"
 KAPACITOR_PROD = "kapacitor.conf"
 SUCCESS = 0
@@ -80,15 +73,6 @@ class KapacitorClassifier():
             self.logger.debug("Failed creating file: {}, Error: {} ".format(
                 file_name, err))
 
-    def read_config(self, config, secure_mode, app_name):
-        """Read the configuration from etcd
-        """
-
-        if secure_mode:
-            self.write_cert(KAPACITOR_CERT, KAPACITOR_SERVER_CERT)
-            self.write_cert(KAPACITOR_KEY, KAPACITOR_SERVER_KEY)
-            self.write_cert(KAPACITOR_CA, KAPACITOR_CACERT)
-
     def install_udf_package(self):
         """ Install python package from udf/requirements.txt if exists
         """
@@ -129,7 +113,6 @@ class KapacitorClassifier():
                 os.environ["KAPACITOR_INFLUXDB_0_URLS_0"] = "{}{}".format(
                     http_scheme, influxdb_hostname_port)
 
-            self.read_config(config, secure_mode, app_name)
             subprocess.Popen(["kapacitord", "-hostname", host_name,
                               "-config", kapacitor_conf, "&"])
             self.logger.info("Started kapacitor Successfully...")
@@ -266,14 +249,6 @@ class KapacitorClassifier():
                                             tick_script,
                                             task_name)
 
-        if secure_mode:
-            try:
-                file_list = [KAPACITOR_CERT,
-                             KAPACITOR_KEY]
-                # Util.delete_certs(file_list)
-            except (OSError, IOError):
-                self.logger.error("Exception Occured while removing"
-                                  "kapacitor certs")
         while True:
             time.sleep(1)
 
