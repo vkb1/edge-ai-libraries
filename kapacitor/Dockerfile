@@ -36,6 +36,7 @@ ENV PYTHONPATH $PYTHONPATH:/tmp/py_package:/app/kapacitor_python/
 
 # Adding classifier program
 COPY classifier_startup.py /app
+COPY opcua_alerts.py /app
 COPY config.json /app
 # Add configs
 COPY ./config/kapacitor*.conf /app/config/

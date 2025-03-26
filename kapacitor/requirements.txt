@@ -4,3 +4,6 @@ protobuf==4.24.4
 watchdog==6.0.0
 modin==0.32.0
 tomlkit==0.13.2
+asyncua==1.1.5
+fastapi==0.115.12
+uvicorn==0.34.0

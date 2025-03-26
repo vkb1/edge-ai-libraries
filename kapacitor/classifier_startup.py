@@ -21,7 +21,7 @@ import tomlkit
 import select
 import threading
 import os.path
-
+import threading
 
 TEMP_KAPACITOR_DIR = tempfile.gettempdir()
 KAPACITOR_DEV = "kapacitor_devmode.conf"
@@ -311,6 +311,11 @@ def main():
     udf_section[udf_name]['env'] = {
         'PYTHONPATH': "/tmp/py_package:/app/kapacitor_python/:"
     }
+    config_data["mqtt"][0]["name"] = config["alerts"]["mqtt"]["name"]
+    mqtt_url = config_data["mqtt"][0]["url"]
+    mqtt_url = mqtt_url.replace("MQTT_BROKER_HOST", config["alerts"]["mqtt"]["mqtt_broker_host"])
+    mqtt_url = mqtt_url.replace("MQTT_BROKER_PORT", str(config["alerts"]["mqtt"]["mqtt_broker_port"]))
+    config_data["mqtt"][0]["url"] = mqtt_url
 
     # Write the updated configuration back to the file
     with open("/tmp/" + conf_file, 'w') as file:
@@ -330,6 +335,30 @@ def main():
         kapacitor_classifier.exit_with_failure_message(msg)
     kapacitor_classifier.install_udf_package()
     kapacitor_started = False
+
+    alerts = config["alerts"]
+    if "opcua" in alerts.keys():
+        try:
+            def start_fastapi_with_workers():
+                # Use subprocess to start Uvicorn with multiple workers
+                command = [
+                    "/app/idp/bin/uvicorn",
+                    "opcua_alerts:app",
+                    "--host", "0.0.0.0",
+                    "--port", "5000",
+                    "--workers", "5",
+                    "--no-access-log"
+                ]
+                subprocess.run(command)
+
+            # Start the FastAPI server with workers in a separate thread
+            fastapi_thread = threading.Thread(target=start_fastapi_with_workers)
+            fastapi_thread.start()
+
+        except Exception as e:
+            logger.error(f"Failed to start command '{command}': {e}")
+
+
     t1 = threading.Thread(target=KapacitorDaemonLogs, args=[logger])
     t1.start()
     if(kapacitor_classifier.start_kapacitor(config,
