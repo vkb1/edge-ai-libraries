@@ -33,7 +33,7 @@ RUN /bin/bash -c "python3 -m venv idp && \
     pip3 install -r requirements.txt"
 
 ENV PYTHONPATH $PYTHONPATH:/tmp/py_package:/app/kapacitor_python/
-
+ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:/app/idp/lib
 # Adding classifier program
 COPY classifier_startup.py /app
 COPY opcua_alerts.py /app
