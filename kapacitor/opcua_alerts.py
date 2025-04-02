@@ -34,13 +34,21 @@ try:
 except Exception as e:
     logger.exception("Fetching app configuration failed, Error: {}".format(e))
 
-
-
 client = Client(opcua_server)
+client.application_uri = "urn:opcua:python:server"
+
+secure_mode = os.getenv("SECURE_MODE", "true")
+if secure_mode.lower() == "true":
+    kapacitor_cert = "/run/secrets/Kapacitor_Server/Kapacitor_Server_server_certificate.pem"
+    kapacitor_key = "/run/secrets/Kapacitor_Server/Kapacitor_Server_server_key.pem"
+    client.set_security_string(f"Basic256Sha256,SignAndEncrypt,{kapacitor_cert},{kapacitor_key}")
+    client.set_user("admin")
+
 async def send_alert_to_opcua_async(alert_message):
     try:
         alert_node = client.get_node("ns=" + str(namespace) + ";i=" + str(node_id))
         alert_node.write_value(alert_message)
+        logger.debug("Alert sent to OPC UA server: {}".format(alert_message))
     except Exception as e:
         print(e)
 

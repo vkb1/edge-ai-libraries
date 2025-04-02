@@ -349,6 +349,9 @@ def main():
                     "--workers", "5",
                     "--no-access-log"
                 ]
+                if secure_mode:
+                    command.extend(["--ssl-keyfile=/run/secrets/Kapacitor_Server/Kapacitor_Server_server_key.pem",
+                                        "--ssl-certfile=/run/secrets/Kapacitor_Server/Kapacitor_Server_server_certificate.pem"])
                 subprocess.run(command)
 
             # Start the FastAPI server with workers in a separate thread
