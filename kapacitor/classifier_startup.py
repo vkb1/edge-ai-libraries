@@ -22,6 +22,7 @@ import select
 import threading
 import os.path
 import threading
+from influxdb import InfluxDBClient
 
 TEMP_KAPACITOR_DIR = tempfile.gettempdir()
 KAPACITOR_DEV = "kapacitor_devmode.conf"
@@ -273,6 +274,41 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+def delete_old_subscription(secure_mode):
+    """Delete old subscription in influxdb
+    """
+    try:
+        # Connect to InfluxDB
+        influx_host = os.getenv('INFLUX_SERVER')
+        influx_username = os.getenv('KAPACITOR_INFLUXDB_0_USERNAME')
+        influx_password = os.getenv('KAPACITOR_INFLUXDB_0_PASSWORD')
+        influx_db = os.getenv('INFLUXDB_DBNAME')
+        if secure_mode:
+            client = InfluxDBClient(host=influx_host, port=8086, username=influx_username, password=influx_password,ssl=True, database=influx_db)
+        else:
+            client = InfluxDBClient(host=influx_host, port=8086, username=influx_username, password=influx_password, database=influx_db)
+
+        # Query to list subscriptions
+        query = 'SHOW SUBSCRIPTIONS'
+
+        try:
+            results = client.query(query)
+            subscriptions = list(results.get_points())            
+            # Print the subscriptions
+            for subscription in subscriptions:
+                if subscription['name'].startswith("kapacitor-"):
+                    logger.debug(f"Retention Policy: {subscription['retention_policy']}, Name: {subscription['name']}, Mode: {subscription['mode']}, Destinations: {subscription['destinations']}")
+                    drop_query = "DROP SUBSCRIPTION \""+subscription['name']+"\" ON "+ influx_db+".autogen"
+                    logger.info(f"Deleting subscription: {subscription['name']}")
+                    client.query(drop_query)
+        except Exception as e:
+            print(f"Failed to list subscriptions: {e}")
+
+        # Close the connection
+        client.close()
+    except Exception as e:
+        logger.exception("Deleting old subscription failed, Error: {}".format(e))
+
 def main():
     """Main to start kapacitor service
     """
@@ -295,6 +331,8 @@ def main():
     watch_config_change = Thread(target=config_file_watch, args=(observer,CONFIG_FILE,))
     watch_config_change.start()
 
+    # Delete old subscription
+    delete_old_subscription(secure_mode)
     conf_file = KAPACITOR_PROD if secure_mode else KAPACITOR_DEV
     # Copy the kapacitor conf file to the /tmp directory
     shutil.copy("/app/config/" + conf_file, "/tmp/" + conf_file)
