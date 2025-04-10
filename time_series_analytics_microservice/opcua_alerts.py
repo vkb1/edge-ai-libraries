@@ -39,8 +39,8 @@ client.application_uri = "urn:opcua:python:server"
 
 secure_mode = os.getenv("SECURE_MODE", "true")
 if secure_mode.lower() == "true":
-    kapacitor_cert = "/run/secrets/Kapacitor_Server/Kapacitor_Server_server_certificate.pem"
-    kapacitor_key = "/run/secrets/Kapacitor_Server/Kapacitor_Server_server_key.pem"
+    kapacitor_cert = "/run/secrets/time_series_analytics_microservice_Server_server_certificate.pem"
+    kapacitor_key = "/run/secrets/time_series_analytics_microservice_Server_server_key.pem"
     client.set_security_string(f"Basic256Sha256,SignAndEncrypt,{kapacitor_cert},{kapacitor_key}")
     client.set_user("admin")
 

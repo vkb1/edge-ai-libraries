@@ -152,7 +152,7 @@ class KapacitorClassifier():
         if self.process_zombie(KAPACITOR_NAME):
             self.exit_with_failure_message("Kapacitor fail to start. "
                                            "Please verify the "
-                                           "ia-kapacitor logs for "
+                                           "Time Series Analytics microservice logs for "
                                            "UDF/kapacitor Errors.")
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.logger.info("Attempting to connect to Kapacitor on port 9092")
@@ -388,8 +388,8 @@ def main():
                     "--no-access-log"
                 ]
                 if secure_mode:
-                    command.extend(["--ssl-keyfile=/run/secrets/Kapacitor_Server/Kapacitor_Server_server_key.pem",
-                                        "--ssl-certfile=/run/secrets/Kapacitor_Server/Kapacitor_Server_server_certificate.pem"])
+                    command.extend(["--ssl-keyfile=/run/secrets/time_series_analytics_microservice_Server_server_key.pem",
+                                        "--ssl-certfile=/run/secrets/time_series_analytics_microservice_Server_server_certificate.pem"])
                 subprocess.run(command)
 
             # Start the FastAPI server with workers in a separate thread
