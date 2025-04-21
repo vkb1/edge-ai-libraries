@@ -2,6 +2,8 @@
 from asyncua.sync import Client
 import os
 import logging
+import time
+import sys
 
 import json
 from fastapi import FastAPI, HTTPException, Request
@@ -38,11 +40,7 @@ client = Client(opcua_server)
 client.application_uri = "urn:opcua:python:server"
 
 secure_mode = os.getenv("SECURE_MODE", "true")
-if secure_mode.lower() == "true":
-    kapacitor_cert = "/run/secrets/time_series_analytics_microservice_Server_server_certificate.pem"
-    kapacitor_key = "/run/secrets/time_series_analytics_microservice_Server_server_key.pem"
-    client.set_security_string(f"Basic256Sha256,SignAndEncrypt,{kapacitor_cert},{kapacitor_key}")
-    client.set_user("admin")
+
 
 async def send_alert_to_opcua_async(alert_message):
     try:
@@ -50,7 +48,7 @@ async def send_alert_to_opcua_async(alert_message):
         alert_node.write_value(alert_message)
         logger.debug("Alert sent to OPC UA server: {}".format(alert_message))
     except Exception as e:
-        print(e)
+        logger.exception(e)
 
 app = FastAPI()
 
@@ -63,7 +61,7 @@ async def receive_alert(request: Request):
         try:
             await send_alert_to_opcua_async(alert_message)
         except Exception as e:
-            print(e)
+            logger.exception(e)
         # Return a success response
         return {"status_code": 200,"status": "success", "message": "Alert received"}
     except Exception as e:
@@ -74,5 +72,26 @@ async def receive_alert(request: Request):
 @app.get("/")
 def read_root():
     return {"message": "FastAPI server is running"}
-
-client.connect() 
+ 
+attempt = 0
+max_retries = 10
+while attempt < max_retries:
+    try:
+        if secure_mode.lower() == "true":
+            kapacitor_cert = "/run/secrets/time_series_analytics_microservice_Server_server_certificate.pem"
+            kapacitor_key = "/run/secrets/time_series_analytics_microservice_Server_server_key.pem"
+            client.set_security_string(f"Basic256Sha256,SignAndEncrypt,{kapacitor_cert},{kapacitor_key}")
+            client.set_user("admin")
+        logger.info(f"Attempting to connect to OPC UA server: {opcua_server} (Attempt {attempt + 1})")
+        client.connect()
+        logger.info(f"Connected to OPC UA server: {opcua_server} successfully.")
+        break
+    except Exception as e:
+        logger.error(f"Connection failed: {e}")
+        attempt += 1
+        if attempt < max_retries:
+            logger.info(f"Retrying in 15 seconds...")
+            time.sleep(max_retries)
+        else:
+            logger.error(f"Max retries reached. Could not connect to the OPC UA server: {opcua_server}.")
+            sys.exit(1)
