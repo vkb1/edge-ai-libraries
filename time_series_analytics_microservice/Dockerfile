@@ -7,6 +7,8 @@ FROM kapacitor:$KAPACITOR_VERSION
 # Install Python and other necessary packages
 RUN apt-get update && \
     apt-get install -y python3 python3-pip python3-venv git && \
+    pip install -U pip && \
+    pip uninstall -y setuptools && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -30,10 +32,13 @@ COPY intel_distribution_requirements.txt .
 RUN /bin/bash -c "python3 -m venv idp && \
     source idp/bin/activate && \
     pip install -i https://software.repos.intel.com/python/pypi -r intel_distribution_requirements.txt && \
-    pip3 install -r requirements.txt"
+    pip3 install -r requirements.txt && \
+    pip install -U pip && \
+    pip uninstall -y setuptools"
 
 ENV PYTHONPATH $PYTHONPATH:/tmp/py_package:/app/kapacitor_python/
 ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:/app/idp/lib
+
 # Adding classifier program
 COPY classifier_startup.py /app
 COPY opcua_alerts.py /app
@@ -45,6 +50,7 @@ RUN apt-get remove --purge -y git
 
 USER $TIMESERIES_USER_NAME
 
-HEALTHCHECK NONE
+HEALTHCHECK --interval=5m CMD exit 0
 
 CMD ["/bin/bash", "-c", "source /app/idp/bin/activate && python3 ./classifier_startup.py"]
+
