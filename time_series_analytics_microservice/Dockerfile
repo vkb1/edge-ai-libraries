@@ -26,8 +26,8 @@ ARG PYTHON_VERSION
 RUN groupadd $TIMESERIES_USER_NAME -g $TIMESERIES_UID && \
     useradd -r -u $TIMESERIES_UID -g $TIMESERIES_USER_NAME $TIMESERIES_USER_NAME
 
-COPY requirements.txt .
-COPY intel_distribution_requirements.txt .
+COPY ./microservices/time_series_analytics_microservice/requirements.txt .
+COPY ./microservices/time_series_analytics_microservice/intel_distribution_requirements.txt .
 
 RUN /bin/bash -c "python3 -m venv idp && \
     source idp/bin/activate && \
@@ -40,11 +40,14 @@ ENV PYTHONPATH $PYTHONPATH:/tmp/py_package:/app/kapacitor_python/
 ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:/app/idp/lib
 
 # Adding classifier program
-COPY classifier_startup.py /app
-COPY opcua_alerts.py /app
-COPY config.json /app
+COPY ./microservices/time_series_analytics_microservice/classifier_startup.py /app
+COPY ./microservices/time_series_analytics_microservice/opcua_alerts.py /app
+COPY ./microservices/time_series_analytics_microservice/mr_interface.py /app
+COPY ./microservices/time_series_analytics_microservice/config.json /app
 # Add configs
-COPY ./config/kapacitor*.conf /app/config/
+COPY ./microservices/time_series_analytics_microservice/config/kapacitor*.conf /app/config/
+
+COPY ./sample_apps/windturbine_anomaly_detection/time_series_analytics_microservice/* /app/
 
 RUN apt-get remove --purge -y git
 

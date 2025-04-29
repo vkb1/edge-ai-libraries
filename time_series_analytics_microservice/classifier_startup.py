@@ -23,6 +23,7 @@ import threading
 import os.path
 import threading
 from influxdb import InfluxDBClient
+from mr_interface import MRHandler
 
 TEMP_KAPACITOR_DIR = tempfile.gettempdir()
 KAPACITOR_DEV = "kapacitor_devmode.conf"
@@ -35,6 +36,7 @@ CONFIG_KEY_PATH = 'config'
 CONFIG_FILE = "/app/config.json"
 
 logging.getLogger("watchdog.observers.inotify_buffer").setLevel(logging.WARNING)
+mrHandlerObj = None
 class ConfigFileEventHandler(FileSystemEventHandler):
     def on_modified(self, event):
         if event.src_path.endswith("config.json"):
@@ -77,7 +79,11 @@ class KapacitorClassifier():
     def install_udf_package(self):
         """ Install python package from udf/requirements.txt if exists
         """
-        python_package_requirement_file = "/app/udfs/requirements.txt"
+        global mrHandlerObj
+        if mrHandlerObj is not None and mrHandlerObj.fetch_from_model_registry:
+            python_package_requirement_file = "/tmp/" + mrHandlerObj.tasks["task_name"] + "/udfs/requirements.txt"
+        else:
+            python_package_requirement_file = "/app/udfs/requirements.txt"
         python_package_installation_path = "/tmp/py_package"
         os.system(f"mkdir -p {python_package_installation_path}")
         if os.path.isfile(python_package_requirement_file):
@@ -191,10 +197,14 @@ class KapacitorClassifier():
                 os._exit(1)
 
         self.logger.info("Kapacitor Port is Open for Communication....")
+        path = "tick_scripts/"
+        global mrHandlerObj
+        if mrHandlerObj is not None and mrHandlerObj.fetch_from_model_registry:
+            path = "/tmp/" + mrHandlerObj.tasks["task_name"] + "/tick_scripts/"
         while retry < retry_count:
             define_pointcl_cmd = ["kapacitor", "-skipVerify", "define",
                                   task_name, "-tick",
-                                  "tick_scripts/" + tick_script]
+                                  path + tick_script]
 
             if subprocess.check_call(define_pointcl_cmd) == SUCCESS:
                 define_pointcl_cmd = ["kapacitor", "-skipVerify", "enable",
@@ -227,28 +237,28 @@ class KapacitorClassifier():
         """Starting the task based on the config
            read from the etcd
         """
-        for task in config['task']:
-            if 'tick_script' in task:
-                tick_script = task['tick_script']
-            else:
-                error_msg = ("tick_script key is missing in config "
-                             "Please provide the tick script to run "
-                             "EXITING!!!!")
-                return error_msg, FAILURE
+        task = config['task']
+        if 'tick_script' in task:
+            tick_script = task['tick_script']
+        else:
+            error_msg = ("tick_script key is missing in config "
+                            "Please provide the tick script to run "
+                            "EXITING!!!!")
+            return error_msg, FAILURE
 
-            if 'task_name' in task:
-                task_name = task['task_name']
-            else:
-                error_msg = ("task_name key is missing in config "
-                             "Please provide the task name "
-                             "EXITING!!!")
-                return error_msg, FAILURE
+        if 'task_name' in task:
+            task_name = task['task_name']
+        else:
+            error_msg = ("task_name key is missing in config "
+                            "Please provide the task name "
+                            "EXITING!!!")
+            return error_msg, FAILURE
 
-            if kapacitor_started:
-                self.logger.info("Enabling {0}".format(tick_script))
-                self.enable_classifier_task(host_name,
-                                            tick_script,
-                                            task_name)
+        if kapacitor_started:
+            self.logger.info("Enabling {0}".format(tick_script))
+            self.enable_classifier_task(host_name,
+                                        tick_script,
+                                        task_name)
 
         while True:
             time.sleep(1)
@@ -323,7 +333,8 @@ def main():
     except Exception as e:
         logger.exception("Fetching app configuration failed, Error: {}".format(e))
         os._exit(1)
-
+    global mrHandlerObj
+    mrHandlerObj = MRHandler(config, logger)
     event_handler = ConfigFileEventHandler()
     observer = Observer()
     observer.schedule(event_handler, path=CONFIG_FILE, recursive=False)
@@ -339,12 +350,15 @@ def main():
     # Read the existing configuration
     with open("/tmp/" + conf_file, 'r') as file:
         config_data = tomlkit.parse(file.read())
-    udf_name = config['task'][0]['udfs'][0]['name']
+    udf_name = config['task']['udfs']['name']
     udf_section = config_data.get('udf', {}).get('functions', {})
     udf_section[udf_name] = tomlkit.table()
 
     udf_section[udf_name]['prog'] = 'python3'
-    udf_section[udf_name]['args'] = ["-u", "/app/udfs/" + udf_name + ".py"]
+    if mrHandlerObj.fetch_from_model_registry:
+        udf_section[udf_name]['args'] = ["-u", "/tmp/"+udf_name+"/udfs/" + udf_name + ".py"]
+    else:
+        udf_section[udf_name]['args'] = ["-u", "/app/udfs/" + udf_name + ".py"]
     udf_section[udf_name]['timeout'] = "60s"
     udf_section[udf_name]['env'] = {
         'PYTHONPATH': "/tmp/py_package:/app/kapacitor_python/:"
