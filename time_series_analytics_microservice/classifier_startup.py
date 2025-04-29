@@ -91,7 +91,7 @@ class KapacitorClassifier():
 
     def start_kapacitor(self,
                         config,
-                        host_name,
+                        kapacitor_url_hostname,
                         secure_mode,
                         app_name):
         """Starts the kapacitor Daemon in the background
@@ -120,7 +120,7 @@ class KapacitorClassifier():
                 os.environ["KAPACITOR_INFLUXDB_0_URLS_0"] = "{}{}".format(
                     http_scheme, influxdb_hostname_port)
 
-            subprocess.Popen(["kapacitord", "-hostname", host_name,
+            subprocess.Popen(["kapacitord", "-hostname", kapacitor_url_hostname,
                               "-config", kapacitor_conf, "&"])
             self.logger.info("Started kapacitor Successfully...")
             return True
@@ -233,7 +233,7 @@ class KapacitorClassifier():
             return error_msg, FAILURE
         return None, SUCCESS
 
-    def enable_tasks(self, config, kapacitor_started, host_name, secure_mode):
+    def enable_tasks(self, config, kapacitor_started, kapacitor_url_hostname, secure_mode):
         """Starting the task based on the config
            read from the etcd
         """
@@ -256,7 +256,7 @@ class KapacitorClassifier():
 
         if kapacitor_started:
             self.logger.info("Enabling {0}".format(tick_script))
-            self.enable_classifier_task(host_name,
+            self.enable_classifier_task(kapacitor_url_hostname,
                                         tick_script,
                                         task_name)
 
@@ -376,7 +376,7 @@ def main():
     kapacitor_classifier = KapacitorClassifier(logger)
 
     logger.info("=============== STARTING kapacitor ==============")
-    host_name = shlex.quote(os.environ["KAPACITOR_SERVER"])
+    host_name = "localhost"
     if not host_name:
         error_log = ('Kapacitor hostname is not Set in the container. '
                      'So exiting...')
@@ -416,8 +416,9 @@ def main():
 
     t1 = threading.Thread(target=KapacitorDaemonLogs, args=[logger])
     t1.start()
+    kapacitor_url_hostname = (os.environ["KAPACITOR_URL"].split("://")[1]).split(":")[0]
     if(kapacitor_classifier.start_kapacitor(config,
-                                            host_name,
+                                            kapacitor_url_hostname,
                                             secure_mode,
                                             app_name) is True):
         kapacitor_started = True
@@ -427,7 +428,7 @@ def main():
 
     msg, status = kapacitor_classifier.enable_tasks(config,
                                                     kapacitor_started,
-                                                    host_name,
+                                                    kapacitor_url_hostname,
                                                     secure_mode)
     if status is FAILURE:
         kapacitor_classifier.exit_with_failure_message(msg)

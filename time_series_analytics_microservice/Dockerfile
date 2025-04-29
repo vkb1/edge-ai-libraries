@@ -47,7 +47,7 @@ COPY ./microservices/time_series_analytics_microservice/config.json /app
 # Add configs
 COPY ./microservices/time_series_analytics_microservice/config/kapacitor*.conf /app/config/
 
-COPY ./sample_apps/windturbine_anomaly_detection/time_series_analytics_microservice/* /app/
+COPY ./sample_apps/windturbine_anomaly_detection/time_series_analytics_microservice/ /app/
 
 RUN apt-get remove --purge -y git
 
