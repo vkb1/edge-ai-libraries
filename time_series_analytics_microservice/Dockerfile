@@ -1,4 +1,8 @@
-# Copyright Intel Corporation
+#
+# Apache v2 license
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
 
 # Use the Kapacitor 1.7.6 image as the base image
 ARG KAPACITOR_VERSION
