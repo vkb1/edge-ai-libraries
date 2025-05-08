@@ -10,7 +10,7 @@ FROM kapacitor:$KAPACITOR_VERSION
 
 # Install Python and other necessary packages
 RUN apt-get update && \
-    apt-get install -y python3 python3-pip python3-venv git && \
+    apt-get install -y --no-install-recommends python3 python3-dev python3-pip python3-venv git && \
     pip install -U pip && \
     pip uninstall -y setuptools && \
     apt-get clean && \
