@@ -46,6 +46,7 @@ class MRHandler:
         self.base_url = os.getenv("MODEL_REGISTRY_URL")
         self.logger = logger
         self.fetch_from_model_registry = False
+        os.environ["REQUESTS_CA_BUNDLE"] = "/run/secrets/server-ca.crt"
         if "fetch_from_model_registry" in self.tasks and self.tasks["fetch_from_model_registry"] is True:
             data = self.get_model_info(self.tasks["task_name"], self.tasks["version"])
             if data is not None and (len(data))>0:
@@ -55,7 +56,9 @@ class MRHandler:
                 self.fetch_from_model_registry = True
             else:
                 self.logger.error("Error: Invalid Model name/version or Model Registy service is not reachable")
+                os.environ["REQUESTS_CA_BUNDLE"] = ""
                 os._exit(1)
+        os.environ["REQUESTS_CA_BUNDLE"] = ""
 
     def get_model_info(self, model_name, model_version):
         """
@@ -77,7 +80,7 @@ class MRHandler:
         url = f"{self.base_url}/models?name={model_name}&version={model_version}"
         try:
             # Make the GET request
-            response = requests.get(url, timeout=10, verify=False)
+            response = requests.get(url, timeout=10, verify=True)
             
             # Check if the request was successful
             if response.status_code == 200:
@@ -113,10 +116,12 @@ class MRHandler:
         try:
             data_headers = {}
             data_headers["Accept"] = "*/*"
+
+            url = f"{self.base_url}{UDF_API_ENDPOINT}/{mr_id}/{UDF_GET_FILES}"
             response2 = requests.get(
-                self.base_url + UDF_API_ENDPOINT + "/" + mr_id + "/" + UDF_GET_FILES,
+                url,
                 timeout=30,
-                verify=False,
+                verify=True,
                 headers=data_headers
             )
             if response2.status_code == 200:
