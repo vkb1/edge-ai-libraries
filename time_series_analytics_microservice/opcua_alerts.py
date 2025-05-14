@@ -43,7 +43,7 @@ except Exception as e:
 client = Client(opcua_server)
 client.application_uri = "urn:opcua:python:server"
 
-secure_mode = os.getenv("SECURE_MODE", "true")
+secure_mode = os.getenv("SECURE_MODE", "false")
 
 
 async def send_alert_to_opcua_async(alert_message):

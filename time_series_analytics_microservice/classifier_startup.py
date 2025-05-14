@@ -329,7 +329,7 @@ def main():
     try:
         with open (CONFIG_FILE, 'r') as file:
             app_cfg = json.load(file)
-        mode = os.getenv("SECURE_MODE", "true")
+        mode = os.getenv("SECURE_MODE", "false")
         secure_mode = mode.lower() == "true"
 
         config = app_cfg["config"]
