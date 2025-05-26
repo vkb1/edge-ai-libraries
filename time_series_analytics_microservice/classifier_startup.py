@@ -367,11 +367,14 @@ def main():
     udf_section[udf_name]['env'] = {
         'PYTHONPATH': "/tmp/py_package:/app/kapacitor_python/:"
     }
-    config_data["mqtt"][0]["name"] = config["alerts"]["mqtt"]["name"]
-    mqtt_url = config_data["mqtt"][0]["url"]
-    mqtt_url = mqtt_url.replace("MQTT_BROKER_HOST", config["alerts"]["mqtt"]["mqtt_broker_host"])
-    mqtt_url = mqtt_url.replace("MQTT_BROKER_PORT", str(config["alerts"]["mqtt"]["mqtt_broker_port"]))
-    config_data["mqtt"][0]["url"] = mqtt_url
+    if "mqtt" in config["alerts"].keys():
+        config_data["mqtt"][0]["name"] = config["alerts"]["mqtt"]["name"]
+        mqtt_url = config_data["mqtt"][0]["url"]
+        mqtt_url = mqtt_url.replace("MQTT_BROKER_HOST", config["alerts"]["mqtt"]["mqtt_broker_host"])
+        mqtt_url = mqtt_url.replace("MQTT_BROKER_PORT", str(config["alerts"]["mqtt"]["mqtt_broker_port"]))
+        config_data["mqtt"][0]["url"] = mqtt_url
+    else:
+        config_data["mqtt"][0]["enabled"] = False
 
     # Write the updated configuration back to the file
     with open("/tmp/" + conf_file, 'w') as file:
@@ -394,10 +397,7 @@ def main():
 
     alerts = config["alerts"]
     if "opcua" in alerts.keys():
-        try:
-            def start_fastapi_with_workers():
-                # Use subprocess to start Uvicorn with multiple workers
-                command = [
+        command = [
                     "/app/idp/bin/uvicorn",
                     "opcua_alerts:app",
                     "--host", "0.0.0.0",
@@ -405,15 +405,19 @@ def main():
                     "--workers", "5",
                     "--no-access-log"
                 ]
-                if secure_mode:
-                    command.extend(["--ssl-keyfile=/run/secrets/time_series_analytics_microservice_Server_server_key.pem",
-                                        "--ssl-certfile=/run/secrets/time_series_analytics_microservice_Server_server_certificate.pem"])
-                subprocess.run(command)
+        def start_fastapi_with_workers():
+            # Use subprocess to start Uvicorn with multiple workers
+            if secure_mode:
+                command.extend([
+                    "--ssl-keyfile=/run/secrets/time_series_analytics_microservice_Server_server_key.pem",
+                    "--ssl-certfile=/run/secrets/time_series_analytics_microservice_Server_server_certificate.pem"
+                ])
+            subprocess.run(command)
 
+        try:
             # Start the FastAPI server with workers in a separate thread
             fastapi_thread = threading.Thread(target=start_fastapi_with_workers)
             fastapi_thread.start()
-
         except Exception as e:
             logger.error(f"Failed to start command '{command}': {e}")
 
