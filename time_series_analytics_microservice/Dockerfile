@@ -31,14 +31,8 @@ RUN groupadd $TIMESERIES_USER_NAME -g $TIMESERIES_UID && \
     useradd -r -u $TIMESERIES_UID -g $TIMESERIES_USER_NAME $TIMESERIES_USER_NAME
 
 COPY ./microservices/time_series_analytics_microservice/requirements.txt .
-COPY ./microservices/time_series_analytics_microservice/intel_distribution_requirements.txt .
 
-RUN /bin/bash -c "python3 -m venv idp && \
-    source idp/bin/activate && \
-    pip install -i https://software.repos.intel.com/python/pypi -r intel_distribution_requirements.txt && \
-    pip3 install -r requirements.txt && \
-    pip install -U pip && \
-    pip uninstall -y setuptools"
+RUN pip3 install -r requirements.txt
 
 ENV PYTHONPATH $PYTHONPATH:/tmp/py_package:/app/kapacitor_python/
 ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:/app/idp/lib
@@ -59,5 +53,4 @@ USER $TIMESERIES_USER_NAME
 
 HEALTHCHECK --interval=5m CMD exit 0
 
-CMD ["/bin/bash", "-c", "source /app/idp/bin/activate && python3 ./classifier_startup.py"]
-
+ENTRYPOINT ["python3", "./classifier_startup.py"]
