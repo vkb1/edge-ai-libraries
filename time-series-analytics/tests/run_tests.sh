@@ -11,7 +11,7 @@ source env/bin/activate
 pip3 install -r requirements.txt
 pip3 install -r tests/requirements.txt
 sudo rm -rf /tmp/htmlcov /tmp/report.txt
-python3 -m pytest --cov=./ tests/ --cov-config=./tests/.coveragerc --maxfail=1 -v | tee /tmp/report.txt
+PYTHONPATH=./src python3 -m pytest --cov=./src tests/ --cov-config=./tests/.coveragerc --maxfail=1 -v | tee /tmp/report.txt
 
 retval=$?
 python3 -m coverage html -d /tmp/htmlcov
