@@ -30,7 +30,7 @@ ARG PYTHON_VERSION
 RUN groupadd $TIMESERIES_USER_NAME -g $TIMESERIES_UID && \
     useradd -r -u $TIMESERIES_UID -g $TIMESERIES_USER_NAME $TIMESERIES_USER_NAME
 
-COPY ./microservices/time_series_analytics_microservice/requirements.txt .
+COPY ./requirements.txt .
 
 RUN pip3 install -r requirements.txt
 
@@ -38,14 +38,14 @@ ENV PYTHONPATH $PYTHONPATH:/tmp/py_package:/app/kapacitor_python/
 ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:/app/idp/lib
 
 # Adding classifier program
-COPY ./microservices/time_series_analytics_microservice/classifier_startup.py /app
-COPY ./microservices/time_series_analytics_microservice/opcua_alerts.py /app
-COPY ./microservices/time_series_analytics_microservice/mr_interface.py /app
-COPY ./microservices/time_series_analytics_microservice/config.json /app
+COPY ./src/classifier_startup.py /app
+COPY ./src/opcua_alerts.py /app
+COPY ./src/mr_interface.py /app
+COPY ./config.json /app
 # Add configs
-COPY ./microservices/time_series_analytics_microservice/config/kapacitor*.conf /app/config/
-
-COPY ./sample_apps/windturbine_anomaly_detection/time_series_analytics_microservice/ /app/
+COPY ./config/kapacitor*.conf /app/config/
+COPY ./tick_scripts /app/tick_scripts
+COPY ./udfs /app/udfs
 
 RUN apt-get remove --purge -y git
 

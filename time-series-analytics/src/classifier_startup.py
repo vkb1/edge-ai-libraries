@@ -103,8 +103,9 @@ class KapacitorClassifier():
         http_scheme = "http://"
         https_scheme = "https://"
         kapacitor_port = os.environ["KAPACITOR_URL"].split("://")[1]
-        influxdb_hostname_port = os.environ[
-            "KAPACITOR_INFLUXDB_0_URLS_0"].split("://")[1]
+        if os.environ["KAPACITOR_INFLUXDB_0_URLS_0"] != "":
+            influxdb_hostname_port = os.environ[
+                "KAPACITOR_INFLUXDB_0_URLS_0"].split("://")[1]
 
         try:
             if secure_mode:
@@ -114,15 +115,17 @@ class KapacitorClassifier():
                 os.environ["KAPACITOR_URL"] = "{}{}".format(https_scheme,
                                                             kapacitor_port)
                 os.environ["KAPACITOR_UNSAFE_SSL"] = "false"
-                os.environ["KAPACITOR_INFLUXDB_0_URLS_0"] = "{}{}".format(
-                    https_scheme, influxdb_hostname_port)
+                if os.environ["KAPACITOR_INFLUXDB_0_URLS_0"] != "":
+                    os.environ["KAPACITOR_INFLUXDB_0_URLS_0"] = "{}{}".format(
+                        https_scheme, influxdb_hostname_port)
             else:
                 kapacitor_conf = '/tmp/' + KAPACITOR_DEV
                 os.environ["KAPACITOR_URL"] = "{}{}".format(http_scheme,
                                                             kapacitor_port)
                 os.environ["KAPACITOR_UNSAFE_SSL"] = "true"
-                os.environ["KAPACITOR_INFLUXDB_0_URLS_0"] = "{}{}".format(
-                    http_scheme, influxdb_hostname_port)
+                if os.environ["KAPACITOR_INFLUXDB_0_URLS_0"] != "":
+                    os.environ["KAPACITOR_INFLUXDB_0_URLS_0"] = "{}{}".format(
+                        http_scheme, influxdb_hostname_port)
 
             subprocess.Popen(["kapacitord", "-hostname", kapacitor_url_hostname,
                               "-config", kapacitor_conf, "&"])
@@ -347,7 +350,8 @@ def main():
     watch_config_change.start()
 
     # Delete old subscription
-    delete_old_subscription(secure_mode)
+    if os.environ["KAPACITOR_INFLUXDB_0_URLS_0"] != "":
+        delete_old_subscription(secure_mode)
     conf_file = KAPACITOR_PROD if secure_mode else KAPACITOR_DEV
     # Copy the kapacitor conf file to the /tmp directory
     shutil.copy("/app/config/" + conf_file, "/tmp/" + conf_file)
@@ -367,7 +371,7 @@ def main():
     udf_section[udf_name]['env'] = {
         'PYTHONPATH': "/tmp/py_package:/app/kapacitor_python/:"
     }
-    if "mqtt" in config["alerts"].keys():
+    if "alerts" in config.keys() and "mqtt" in config["alerts"].keys():
         config_data["mqtt"][0]["name"] = config["alerts"]["mqtt"]["name"]
         mqtt_url = config_data["mqtt"][0]["url"]
         mqtt_url = mqtt_url.replace("MQTT_BROKER_HOST", config["alerts"]["mqtt"]["mqtt_broker_host"])
@@ -375,7 +379,9 @@ def main():
         config_data["mqtt"][0]["url"] = mqtt_url
     else:
         config_data["mqtt"][0]["enabled"] = False
-
+    
+    if os.environ["KAPACITOR_INFLUXDB_0_URLS_0"] != "":
+        config_data["influxdb"][0]["enabled"] = True
     # Write the updated configuration back to the file
     with open("/tmp/" + conf_file, 'w') as file:
         file.write(tomlkit.dumps(config_data, sort_keys=False))
@@ -395,8 +401,7 @@ def main():
     kapacitor_classifier.install_udf_package()
     kapacitor_started = False
 
-    alerts = config["alerts"]
-    if "opcua" in alerts.keys():
+    if "alerts" in config.keys() and "opcua" in config["alerts"].keys():
         command = [
                     "/app/idp/bin/uvicorn",
                     "opcua_alerts:app",
