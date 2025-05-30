@@ -5,18 +5,12 @@
 
 .. toctree::
    :hidden:
-   :caption: Sample Apps
+   :caption: Default Configuration
 
-   ./Wind-Turbine-Anomaly-Detection
+   ./Temperature-classifier
 
 .. toctree::
    :hidden:
    :caption: Advanced Configuration
 
    ./Custom-User-Configuration
-
-.. toctree::
-   :hidden:
-   :caption: Deploying with Edge Orchestrator
-
-   ./how-to-deploy-with-edge-orchestrator

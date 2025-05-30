@@ -2,8 +2,7 @@
 
 The **Time Series Analytics Microservice** handles the time series data that supports data processing.
 
-The Time Series Analytics microservice which uses Kapacitor as the real-time data processing engine and accelerates the Machine Learning algorithms via Intel® Extension for Scikit-learn*.
-More details on the Intel® Extension for Scikit-learn* at <https://www.intel.com/content/www/us/en/developer/articles/technical/easy-introduction-to-scikit-learn.html>
+The Time Series Analytics microservice which uses Kapacitor as the real-time data processing engine and accelerates the Machine Learning algorithms via Intel® Extension for Scikit-learn*. More details on the Intel® Extension for Scikit-learn* at <https://www.intel.com/content/www/us/en/developer/articles/technical/easy-introduction-to-scikit-learn.html>
 
 
 ## Overview
