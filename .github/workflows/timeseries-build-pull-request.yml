@@ -73,7 +73,11 @@ jobs:
       contents: read
       packages: read          # needed for actions/checkout
     runs-on: ubuntu-24.04
+    needs: timeseries-pre-merge-build
     steps:
+    - uses: actions/checkout@v1
+      with:
+          path: timeseries
     - name: Run unit tests
       run: |
         cd "${{ github.workspace }}"
