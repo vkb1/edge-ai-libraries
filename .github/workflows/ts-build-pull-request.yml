@@ -52,26 +52,26 @@ jobs:
           path: timeseries
     - name: Build
       run: |
-        cd ./microservices/time-series-analytics
+        cd ./microservices/time-series-analytics/docker
         sed -i "s/DOCKER_REGISTRY=.*/DOCKER_REGISTRY=admin/g" .env
         docker compose down -v 
         docker compose build
     - name: Run unit tests
       run: |
         cd "${{ github.workspace }}"
-        cd ./microservices/time-series-analytics
+        cd ./microservices/time-series-analytics/tests
         echo "Running unit tests"
         ./tests/run_tests.sh
     - name: Deploy
       run: |
         cd "${{ github.workspace }}"
-        cd ./microservices/time-series-analytics
+        cd ./microservices/time-series-analytics/docker
         echo "Deploying time-series-analytics microservices"
         docker compose up -d
     - name: Undeploy
       run: |
         cd "${{ github.workspace }}"
-        cd ./microservices/time-series-analytics
+        cd ./microservices/time-series-analytics/docker
         docker compose down -v
     - name: Upload HTML unit test coverage to Github
       uses: actions/upload-artifact@v4
