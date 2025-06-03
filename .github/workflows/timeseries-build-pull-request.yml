@@ -84,6 +84,7 @@ jobs:
         cd ./microservices/time-series-analytics
         echo "Running unit tests"
         ./tests/run_tests.sh
+        source env/bin/activate
         PYTHONPATH=./src python3 -m pytest --cov=./src tests/ --cov-config=./tests/.coveragerc --tb=no -q -p no:warnings -r a >> $GITHUB_STEP_SUMMARY
     - name: Upload HTML unit test coverage to Github
       uses: actions/upload-artifact@v4
