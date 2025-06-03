@@ -68,66 +68,66 @@ jobs:
         cd ./microservices/time-series-analytics/docker
         docker compose down -v
 
-    timeseries-pre-merge-unit-test:
-      permissions:
-        contents: read
-        packages: read          # needed for actions/checkout
-      runs-on: ubuntu-24.04
-      steps:
-      - name: Run unit tests
-        run: |
-          cd "${{ github.workspace }}"
-          cd ./microservices/time-series-analytics
-          echo "Running unit tests"
-          ./tests/run_tests.sh
-      - name: Upload HTML unit test coverage to Github
-        uses: actions/upload-artifact@v4
-        with:
-            name: unit-test-coverage
-            path: /tmp/htmlcov
-      - name: Upload XML unit test coverage to Github
-        uses: actions/upload-artifact@v4
-        with:
-            name: unit-test-report
-            path: /tmp/report.txt
-    
-    timeseries-bandit-virus-scans:
-      name: Run Bandit and Virus Scan
-      runs-on: ubuntu-24.04
-      strategy:
-        fail-fast: false
-        matrix:
-          include:
-            - ubuntu_version: ubuntu24
-      steps:
-      - name: Check out edge-ai-libraries repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 #4.2.2
-        with:
-          path: edge-ai-libraries-repo
+  timeseries-pre-merge-unit-test:
+    permissions:
+      contents: read
+      packages: read          # needed for actions/checkout
+    runs-on: ubuntu-24.04
+    steps:
+    - name: Run unit tests
+      run: |
+        cd "${{ github.workspace }}"
+        cd ./microservices/time-series-analytics
+        echo "Running unit tests"
+        ./tests/run_tests.sh
+    - name: Upload HTML unit test coverage to Github
+      uses: actions/upload-artifact@v4
+      with:
+          name: unit-test-coverage
+          path: /tmp/htmlcov
+    - name: Upload XML unit test coverage to Github
+      uses: actions/upload-artifact@v4
+      with:
+          name: unit-test-report
+          path: /tmp/report.txt
+  
+  timeseries-bandit-virus-scans:
+    name: Run Bandit and Virus Scan
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ubuntu_version: ubuntu24
+    steps:
+    - name: Check out edge-ai-libraries repository
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 #4.2.2
+      with:
+        path: edge-ai-libraries-repo
 
-      - name: Run Bandit Scan
-        run: |
-          mkdir -p reports
-          docker pull ghcr.io/pycqa/bandit/bandit
-          echo "### Bandit Scan Results" >> $GITHUB_STEP_SUMMARY
-          docker run --rm -v "${{ github.workspace }}:/src" ghcr.io/pycqa/bandit/bandit -r /src/edge-ai-libraries-repo/microservices/time-series-analytics -f txt -o /src/reports/bandit-report.txt || true >> $GITHUB_STEP_SUMMARY
-          echo "Please find full report in bandit-report.txt" >> $GITHUB_STEP_SUMMARY
-      - name: Run Virus Scan
-        run: |
-          mkdir -p reports
-          docker pull clamav/clamav
-          echo "### Virus Scan Results" >> $GITHUB_STEP_SUMMARY
-          docker run --rm -v "${{ github.workspace }}:/src" clamav/clamav clamscan -r  /src/edge-ai-libraries/microservices/time-series-analytics/ > ./reports/clamav-report.txt || true
-          echo "Please find full report in clamav-report.txt" >> $GITHUB_STEP_SUMMARY
-      - name: Upload Scan Reports
-        uses: actions/upload-artifact@v4
-        with:
-          name: bandit-virus-reports
-          path: reports/
-      - name: Clean up
-        if: always()
-        run: |
-          rm -rf edge-ai-libraries-repo
-          if [ -n "$(docker images -aq)" ]; then
-                docker rmi -f $(docker images -aq) || true
-          fi
+    - name: Run Bandit Scan
+      run: |
+        mkdir -p reports
+        docker pull ghcr.io/pycqa/bandit/bandit
+        echo "### Bandit Scan Results" >> $GITHUB_STEP_SUMMARY
+        docker run --rm -v "${{ github.workspace }}:/src" ghcr.io/pycqa/bandit/bandit -r /src/edge-ai-libraries-repo/microservices/time-series-analytics -f txt -o /src/reports/bandit-report.txt || true >> $GITHUB_STEP_SUMMARY
+        echo "Please find full report in bandit-report.txt" >> $GITHUB_STEP_SUMMARY
+    - name: Run Virus Scan
+      run: |
+        mkdir -p reports
+        docker pull clamav/clamav
+        echo "### Virus Scan Results" >> $GITHUB_STEP_SUMMARY
+        docker run --rm -v "${{ github.workspace }}:/src" clamav/clamav clamscan -r  /src/edge-ai-libraries/microservices/time-series-analytics/ > ./reports/clamav-report.txt || true
+        echo "Please find full report in clamav-report.txt" >> $GITHUB_STEP_SUMMARY
+    - name: Upload Scan Reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: bandit-virus-reports
+        path: reports/
+    - name: Clean up
+      if: always()
+      run: |
+        rm -rf edge-ai-libraries-repo
+        if [ -n "$(docker images -aq)" ]; then
+              docker rmi -f $(docker images -aq) || true
+        fi
