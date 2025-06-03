@@ -95,7 +95,7 @@ jobs:
         path: /tmp/report.txt
   
   bandit-scans:
-    name: Run Bandit and Virus Scan
+    name: Run Bandit Scan
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -127,9 +127,9 @@ jobs:
         if [ -n "$(docker images -aq)" ]; then
               docker rmi -f $(docker images -aq) || true
         fi
-        
+
   virus-scans:
-    name: Run Bandit and Virus Scan
+    name: Run Virus Scan
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
