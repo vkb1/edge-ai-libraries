@@ -403,7 +403,7 @@ def main():
 
     if "alerts" in config.keys() and "opcua" in config["alerts"].keys():
         command = [
-                    "/app/idp/bin/uvicorn",
+                    "uvicorn",
                     "opcua_alerts:app",
                     "--host", "0.0.0.0",
                     "--port", "5000",
@@ -429,6 +429,17 @@ def main():
 
     t1 = threading.Thread(target=KapacitorDaemonLogs, args=[logger])
     t1.start()
+
+    # Start the analytics input service in a separate thread
+    def run_analytics_input_service():
+        command = ["uvicorn", "analytics_input_service:app", "--host", "0.0.0.0", "--port", "8000"]
+        subprocess.run(command, check=True)
+    try:
+        analytics_thread = threading.Thread(target=run_analytics_input_service, daemon=True)
+        analytics_thread.start()
+    except Exception as e:
+        logger.error(f"Failed to start the analytics input service: {e}")
+
     kapacitor_url_hostname = (os.environ["KAPACITOR_URL"].split("://")[1]).split(":")[0]
     if(kapacitor_classifier.start_kapacitor(config,
                                             kapacitor_url_hostname,
