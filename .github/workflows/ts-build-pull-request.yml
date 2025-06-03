@@ -3,40 +3,45 @@
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
-name: Pull Request
+name: "[DLS] PR workflow"
+run-name: "[DLS] PR  workflow (by @${{ github.actor }} via ${{ github.event_name }})"
 on:
-  # Trigger the workflow on pull request,
-  # but only for the main branch
-  pull_request:
-    types: [assigned, opened, synchronize, reopened]
+  push:
     branches:
-      - main
-  # Also trigger on page_build, as well as release created events
+      - 'main'
+    paths:
+      - 'libraries/dl-streamer/*'
+      - 'libraries/dl-streamer/cmake/**'
+      - 'libraries/dl-streamer/docker/**'
+      - 'libraries/dl-streamer/include/**'
+      - 'libraries/dl-streamer/python/**'
+      - 'libraries/dl-streamer/samples/**'
+      - 'libraries/dl-streamer/scripts/**'
+      - 'libraries/dl-streamer/src/**'
+      - 'libraries/dl-streamer/tests/**'
+      - 'libraries/dl-streamer/thirdparty/**'
+  pull_request:
+    paths:
+      - 'libraries/dl-streamer/*'
+      - 'libraries/dl-streamer/cmake/**'
+      - 'libraries/dl-streamer/docker/**'
+      - 'libraries/dl-streamer/include/**'
+      - 'libraries/dl-streamer/python/**'
+      - 'libraries/dl-streamer/samples/**'
+      - 'libraries/dl-streamer/scripts/**'
+      - 'libraries/dl-streamer/src/**'
+      - 'libraries/dl-streamer/tests/**'
+      - 'libraries/dl-streamer/thirdparty/**'
+  workflow_call:
   workflow_dispatch:
+permissions: {}
+
 jobs:
-  filter:
-    permissions:
-      contents: read          # needed for actions/checkout
-    runs-on: ubuntu-latest
-    outputs:
-      time_series_analytics_changed: ${{ steps.filter.outputs.time-series-analytics }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: Set paths filter
-        id: filter
-        uses: dorny/paths-filter@4512585405083f25c027a35db413c2b3b9006d50
-        with:
-          filters: |
-            time-series-analytics:
-              - 'microservices/time-series-analytics/**'
   build:
     permissions:
-      contents: read          # needed for actions/checkout
-    needs: filter
-    if: ${{ needs.filter.outputs.time_series_analytics_changed == 'true' }}
-    runs-on: ubuntu-latest
+      contents: read
+      packages: read          # needed for actions/checkout
+    runs-on: ubuntu-24.04
     steps:
     - name: Runner workspace path
       run: |
