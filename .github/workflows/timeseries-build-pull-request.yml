@@ -94,7 +94,7 @@ jobs:
         name: unit-test-report
         path: /tmp/report.txt
   
-  bandit-virus-scans:
+  bandit-scans:
     name: Run Bandit and Virus Scan
     runs-on: ubuntu-24.04
     strategy:
@@ -115,6 +115,32 @@ jobs:
         echo "### Bandit Scan Results" >> $GITHUB_STEP_SUMMARY
         docker run --rm -v "${{ github.workspace }}:/src" ghcr.io/pycqa/bandit/bandit -r /src/edge-ai-libraries-repo/microservices/time-series-analytics -f txt -o /src/reports/bandit-report.txt || true >> $GITHUB_STEP_SUMMARY
         echo "Please find full report in bandit-report.txt" >> $GITHUB_STEP_SUMMARY
+    - name: Upload Scan Reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: bandit-report
+        path: reports/bandit-report.txt
+    - name: Clean up
+      if: always()
+      run: |
+        rm -rf edge-ai-libraries-repo
+        if [ -n "$(docker images -aq)" ]; then
+              docker rmi -f $(docker images -aq) || true
+        fi
+        
+  virus-scans:
+    name: Run Bandit and Virus Scan
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ubuntu_version: ubuntu24
+    steps:
+    - name: Check out edge-ai-libraries repository
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 #4.2.2
+      with:
+        path: edge-ai-libraries-repo
     - name: Run Virus Scan
       run: |
         mkdir -p reports
@@ -125,8 +151,8 @@ jobs:
     - name: Upload Scan Reports
       uses: actions/upload-artifact@v4
       with:
-        name: bandit-virus-reports
-        path: reports/
+        name: virus-reports
+        path: reports/clamav-report.txt
     - name: Clean up
       if: always()
       run: |
