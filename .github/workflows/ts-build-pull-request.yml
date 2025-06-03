@@ -59,7 +59,7 @@ jobs:
     - name: Run unit tests
       run: |
         cd "${{ github.workspace }}"
-        cd ./microservices/time-series-analytics/tests
+        cd ./microservices/time-series-analytics
         echo "Running unit tests"
         ./tests/run_tests.sh
     - name: Deploy
