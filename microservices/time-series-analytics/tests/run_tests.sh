@@ -12,6 +12,6 @@ pip3 install -r requirements.txt
 pip3 install -r tests/requirements.txt
 sudo rm -rf /tmp/htmlcov /tmp/report.txt
 PYTHONPATH=./src python3 -m pytest --cov=./src tests/ --cov-config=./tests/.coveragerc --maxfail=1 -v | tee /tmp/report.txt
-
+PYTHONPATH=./src python3 -m pytest --cov=./src tests/ --cov-config=./tests/.coveragerc --tb=no -q -p no:warnings -r a | tee /tmp/unit-test-results.txt
 retval=$?
 python3 -m coverage html -d /tmp/htmlcov
