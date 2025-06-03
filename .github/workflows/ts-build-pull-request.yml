@@ -10,28 +10,22 @@ on:
     branches:
       - 'main'
     paths:
-      - 'libraries/dl-streamer/*'
-      - 'libraries/dl-streamer/cmake/**'
-      - 'libraries/dl-streamer/docker/**'
-      - 'libraries/dl-streamer/include/**'
-      - 'libraries/dl-streamer/python/**'
-      - 'libraries/dl-streamer/samples/**'
-      - 'libraries/dl-streamer/scripts/**'
-      - 'libraries/dl-streamer/src/**'
-      - 'libraries/dl-streamer/tests/**'
-      - 'libraries/dl-streamer/thirdparty/**'
+      - 'microservices/time-series-analytics/*'
+      - 'microservices/time-series-analytics/config/**'
+      - 'microservices/time-series-analytics/docker/**'
+      - 'microservices/time-series-analytics/src/**'
+      - 'microservices/time-series-analytics/tests/**'
+      - 'microservices/time-series-analytics/tick_scripts/**'
+      - 'microservices/time-series-analytics/udfs/**'
   pull_request:
     paths:
-      - 'libraries/dl-streamer/*'
-      - 'libraries/dl-streamer/cmake/**'
-      - 'libraries/dl-streamer/docker/**'
-      - 'libraries/dl-streamer/include/**'
-      - 'libraries/dl-streamer/python/**'
-      - 'libraries/dl-streamer/samples/**'
-      - 'libraries/dl-streamer/scripts/**'
-      - 'libraries/dl-streamer/src/**'
-      - 'libraries/dl-streamer/tests/**'
-      - 'libraries/dl-streamer/thirdparty/**'
+      - 'microservices/time-series-analytics/*'
+      - 'microservices/time-series-analytics/config/**'
+      - 'microservices/time-series-analytics/docker/**'
+      - 'microservices/time-series-analytics/src/**'
+      - 'microservices/time-series-analytics/tests/**'
+      - 'microservices/time-series-analytics/tick_scripts/**'
+      - 'microservices/time-series-analytics/udfs/**'
   workflow_call:
   workflow_dispatch:
 permissions: {}
