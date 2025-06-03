@@ -31,7 +31,7 @@ on:
 permissions: {}
 
 jobs:
-  build:
+  timeseries-pre-merge:
     permissions:
       contents: read
       packages: read          # needed for actions/checkout
