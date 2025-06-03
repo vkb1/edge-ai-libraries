@@ -3,8 +3,8 @@
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
-name: "[DLS] PR workflow"
-run-name: "[DLS] PR  workflow (by @${{ github.actor }} via ${{ github.event_name }})"
+name: "[Time Series] PR workflow"
+run-name: "[Time Series] PR  workflow (by @${{ github.actor }} via ${{ github.event_name }})"
 on:
   push:
     branches:
