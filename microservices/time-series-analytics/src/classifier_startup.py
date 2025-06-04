@@ -79,15 +79,51 @@ class KapacitorClassifier():
         except (OSError, IOError) as err:
             self.logger.debug("Failed creating file: {}, Error: {} ".format(
                 file_name, err))
+    
+    def check_udf_package(self, config):
+        """ Check if udf package is present in the container
+        """
+        logger.info("Checking if UDF package is present in the container...")
+        path = "/tmp/" + config['task']["task_name"] +"/"
+        udf_dir = os.path.join(path, "udfs") 
+        model_dir = os.path.join(path, "models") 
+        tick_scripts_dir = os.path.join(path, "tick_scripts") 
+        found_udf = False
+        found_tick_scripts = False
+        found_model = False
+        while True:
+            if os.path.isdir(udf_dir) and os.path.isfile(os.path.join(udf_dir, config['task']["task_name"] + ".py")):
+                found_udf = True
+        
+            if os.path.isdir(tick_scripts_dir) and os.path.isfile(os.path.join(tick_scripts_dir, config['task']["task_name"] + ".tick")):
+                found_tick_scripts = True
 
-    def install_udf_package(self):
+            # Check for any file with the task_name in the models directory, regardless of extension
+            if os.path.isdir(model_dir):
+                for fname in os.listdir(model_dir):
+                    if fname.startswith(config['task']["task_name"]):
+                        found_model = True
+                        break
+            if not(found_model and found_udf and found_tick_scripts):
+                missing_items = []
+                if not found_model:
+                    missing_items.append(f"model file for task {mrHandlerObj.tasks['task_name']}")
+                if not found_udf:
+                    missing_items.append(f"udf file for task {mrHandlerObj.tasks['task_name']}")
+                if not found_tick_scripts:
+                    missing_items.append(f"tick script for task {mrHandlerObj.tasks['task_name']}")
+                self.logger.error(
+                    "Missing " + ", ".join(missing_items) + ". Please check and upload/copy the udf package."
+                )
+            else:
+                return
+            time.sleep(5)
+
+    def install_udf_package(self,config):
         """ Install python package from udf/requirements.txt if exists
         """
-        global mrHandlerObj
-        if mrHandlerObj is not None and mrHandlerObj.fetch_from_model_registry:
-            python_package_requirement_file = "/tmp/" + mrHandlerObj.tasks["task_name"] + "/udfs/requirements.txt"
-        else:
-            python_package_requirement_file = "/app/udfs/requirements.txt"
+
+        python_package_requirement_file = "/tmp/" + config['task']["task_name"] + "/udfs/requirements.txt"
         python_package_installation_path = "/tmp/py_package"
         os.system(f"mkdir -p {python_package_installation_path}")
         if os.path.isfile(python_package_requirement_file):
@@ -204,10 +240,8 @@ class KapacitorClassifier():
                 os._exit(1)
 
         self.logger.info("Kapacitor Port is Open for Communication....")
-        path = "tick_scripts/"
-        global mrHandlerObj
-        if mrHandlerObj is not None and mrHandlerObj.fetch_from_model_registry:
-            path = "/tmp/" + mrHandlerObj.tasks["task_name"] + "/tick_scripts/"
+ 
+        path = "/tmp/" + task_name + "/tick_scripts/"
         while retry < retry_count:
             define_pointcl_cmd = ["kapacitor", "-skipVerify", "define",
                                   task_name, "-tick",
@@ -363,10 +397,9 @@ def main():
     udf_section[udf_name] = tomlkit.table()
 
     udf_section[udf_name]['prog'] = 'python3'
-    if mrHandlerObj.fetch_from_model_registry:
-        udf_section[udf_name]['args'] = ["-u", "/tmp/"+udf_name+"/udfs/" + udf_name + ".py"]
-    else:
-        udf_section[udf_name]['args'] = ["-u", "/app/udfs/" + udf_name + ".py"]
+    
+    udf_section[udf_name]['args'] = ["-u", "/tmp/"+udf_name+"/udfs/" + udf_name + ".py"]
+    
     udf_section[udf_name]['timeout'] = "60s"
     udf_section[udf_name]['env'] = {
         'PYTHONPATH': "/tmp/py_package:/app/kapacitor_python/:"
@@ -398,12 +431,14 @@ def main():
     msg, status = kapacitor_classifier.check_config(config)
     if status is FAILURE:
         kapacitor_classifier.exit_with_failure_message(msg)
-    kapacitor_classifier.install_udf_package()
+
+    kapacitor_classifier.check_udf_package(config)
+    kapacitor_classifier.install_udf_package(config)
     kapacitor_started = False
 
     if "alerts" in config.keys() and "opcua" in config["alerts"].keys():
         command = [
-                    "/app/idp/bin/uvicorn",
+                    "uvicorn",
                     "opcua_alerts:app",
                     "--host", "0.0.0.0",
                     "--port", "5000",
