@@ -84,7 +84,20 @@ jobs:
         cd ./microservices/time-series-analytics
         echo "Running unit tests"
         ./tests/run_tests.sh
-        cat /tmp/unit-test-results.txt >> $GITHUB_STEP_SUMMARY
+        coverage=$(grep 'TOTAL' /tmp/unit-test-results.txt | awk '{print $4}')
+        # Extract test summary
+        summary=$(grep -Eo '[0-9]+ (passed|failed|skipped)' /tmp/unit-test-results.txt)
+        # Calculate total number of test cases
+        total_tests=$(echo "$summary" | awk '{sum += $1} END {print sum}')
+        # Extract number of passed tests
+        passed_tests=$(echo "$summary" | grep 'passed' | awk '{print $1}')
+        # Extract number of failed tests
+        failed_tests=$(echo "$summary" | grep 'failed' | awk '{print $1}')
+        # Print results
+        echo "Coverage: $coverage" >> $GITHUB_STEP_SUMMARY
+        echo "Total tests: $total_tests" >> $GITHUB_STEP_SUMMARY
+        echo "Passed tests: $passed_tests" >> $GITHUB_STEP_SUMMARY
+        echo "Failed tests: $failed_tests" >> $GITHUB_STEP_SUMMARY
     - name: Upload HTML unit test coverage to Github
       uses: actions/upload-artifact@v4
       with:
