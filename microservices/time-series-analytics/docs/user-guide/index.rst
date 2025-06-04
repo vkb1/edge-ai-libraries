@@ -1,16 +1,19 @@
 .. toctree::
-   :caption: Introduction
+   :hidden:
 
    Overview
 
 .. toctree::
-   :hidden:
-   :caption: Default Configuration
 
-   ./Temperature-classifier
+   system-requirements
+   get-started
 
 .. toctree::
-   :hidden:
-   :caption: Advanced Configuration
+   :caption: How to
+   
+   how-to-deploy-with-helm
 
-   ./Custom-User-Configuration
+.. toctree::
+   :caption: Release Notes
+
+   release_notes/Overview
