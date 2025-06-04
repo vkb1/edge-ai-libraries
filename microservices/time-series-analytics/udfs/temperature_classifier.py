@@ -45,6 +45,7 @@ class MirrorHandler(Handler):
     def point(self, point):
         point_dict = point.fieldsDouble
         temp = point_dict['temperature']
+        logger.debug(f"Received temperature data value: {temp}")
         if temp < 20 or temp > 25:
             response = udf_pb2.Response()
             response.point.CopyFrom(point)

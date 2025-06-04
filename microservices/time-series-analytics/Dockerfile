@@ -41,6 +41,7 @@ ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:/app/idp/lib
 COPY ./src/classifier_startup.py /app
 COPY ./src/opcua_alerts.py /app
 COPY ./src/mr_interface.py /app
+COPY ./src/analytics_input_service.py /app
 COPY ./config.json /app
 # Add configs
 COPY ./config/kapacitor*.conf /app/config/
