@@ -99,11 +99,14 @@ class KapacitorClassifier():
                 found_tick_scripts = True
 
             # Check for any file with the task_name in the models directory, regardless of extension
-            if os.path.isdir(model_dir):
-                for fname in os.listdir(model_dir):
-                    if fname.startswith(config['task']["task_name"]):
-                        found_model = True
-                        break
+            if "models" in config["task"]["udfs"].keys():
+                if os.path.isdir(model_dir):
+                    for fname in os.listdir(model_dir):
+                        if fname.startswith(config['task']["task_name"]):
+                            found_model = True
+                            break
+            else:
+                found_model = True
             if not(found_model and found_udf and found_tick_scripts):
                 missing_items = []
                 if not found_model:
@@ -418,6 +421,13 @@ def main():
     # Write the updated configuration back to the file
     with open("/tmp/" + conf_file, 'w') as file:
         file.write(tomlkit.dumps(config_data, sort_keys=False))
+
+    # Copy the /app/temperature_Classifier folder to /tmp/temperature_classifier
+    src_dir = "/app/temperature_classifier"
+    dst_dir = "/tmp/temperature_classifier"
+    if os.path.exists(dst_dir):
+        shutil.rmtree(dst_dir)
+    shutil.copytree(src_dir, dst_dir)
 
     kapacitor_classifier = KapacitorClassifier(logger)
 

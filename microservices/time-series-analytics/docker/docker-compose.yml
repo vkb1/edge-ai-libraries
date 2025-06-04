@@ -49,10 +49,7 @@ services:
     - timeseries_network
     volumes:
     - "vol_temp_time_series_analytics_microservice:/tmp/"
-    - ../udfs/:/app/udfs/
-    - ../tick_scripts/:/app/tick_scripts/
     - ../config.json:/app/config.json
-    - ../time_series_analytics_microservice/models/:/app/models/
 
 networks:
   timeseries_network:

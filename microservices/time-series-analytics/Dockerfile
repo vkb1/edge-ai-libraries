@@ -44,8 +44,8 @@ COPY ./src/mr_interface.py /app
 COPY ./config.json /app
 # Add configs
 COPY ./config/kapacitor*.conf /app/config/
-COPY ./tick_scripts /app/tick_scripts
-COPY ./udfs /app/udfs
+COPY ./tick_scripts /app/temperature_classifier/tick_scripts
+COPY ./udfs /app/temperature_classifier/udfs
 
 RUN apt-get remove --purge -y git
 
