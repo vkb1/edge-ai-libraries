@@ -1,6 +1,6 @@
 # Get Started
 
--   **Time to Complete:** 30 minutes
+-   **Time to Complete:** 30 minutes 
 -   **Programming Language:**  Python 3
 
 ## Prerequisites
