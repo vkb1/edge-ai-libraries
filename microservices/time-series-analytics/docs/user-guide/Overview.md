@@ -18,7 +18,22 @@ For more information on creating custom UDFs, see the [Kapacitor Anomaly Detecti
 
 ## High-Level Architecture
 
-WORK IN PROGRESS
+![Time Series Analytics Microservice High Level Architecture](_images/Time-Series-Analytics-Microservice-Architecture.png)
+
+As seen in the architecture diagram, the `Time Series Analytics` microservice can take input data from various sources.
+The input data that this microservice takes can be broadly divided into two:
+1. **Input payload and configuration management via REST APIs**
+   a. REST clients sending the data in json format
+   b. Telegraf services sending the data in line protocol format
+2. **UDF deployment package**(comprises of UDF, TICKScripts, models)
+   a. Through Volume mounts OR docker cp OR kubectl cp command
+   b. Pulling the UDF deployment package from the Model Registry microservice
+
+As a default flow, we have sample temperature simulator to ingest data in json format and have pre-packaged simple process based User Defined Function (UDF) in `Time Series Analytics` microservice to flag the temperature
+points if they don't fall under a range as anomalies. The output is seen in the logs of the microservice now.
+
+For understanding the other ways of ingesting data, UDF deployment package configuration, publishing alerts and writing data back to InfluxDB via TICKScripts, the user guide of Wind Turbine Sample app can be referenced at
+<https://github.com/open-edge-platform/edge-ai-suites/tree/main/manufacturing-ai-suite/wind-turbine-anomaly-detection/docs/user-guide>. In here, please mainly follow the docs around Time Series Analytics microservice configuration usage: Overview.md, get-started.md, how-to-configure-alerts.md, how-to-configure-custom-udf.md etc.,
 
 ---
 
