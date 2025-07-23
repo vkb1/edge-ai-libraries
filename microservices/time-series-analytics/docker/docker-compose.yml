@@ -55,12 +55,6 @@ services:
     - ../config.json:/app/config.json
     - /dev/dri:/dev/dri
     - "/run/udev:/run/udev:ro"
-    device_cgroup_rules:
-    # Default run - device-cgroup-rule='c 189:* rmw'
-    # Selective rules can be applied for deployment
-    - 'c 189:* rmw'
-    - 'c 209:* rmw'
-    - 'a 189:* rwm'
     devices:
       # Following devices under /dev filesystem will be needed based on usecase
       # dri - GPU
@@ -70,6 +64,7 @@ services:
     - "109"
     # render group ID for ubuntu 22.04 host OS
     - "110"
+
 
 networks:
   timeseries_network:
