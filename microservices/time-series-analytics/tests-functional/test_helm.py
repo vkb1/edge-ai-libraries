@@ -4,11 +4,14 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+"""
+Helm Tests for Time Series Analytics Microservice.
+"""
 import subprocess
 import os
-import pytest
 import time
 import shutil
+import pytest
 import rest_api_utils as utils
 
 NAMESPACE = "apps"
@@ -40,7 +43,9 @@ def helm_install(release_name, chart_path, namespace):
         print(result.stdout)
         return True
     except subprocess.CalledProcessError as e:
-        print(f"Failed to install Helm chart: Error: INSTALLATION FAILED: values don't meet the specifications of the schema(s) in the following chart(s): {e.stderr}")
+        print(f"Failed to install Helm chart: Error: INSTALLATION FAILED: "
+              f"values don't meet the specifications of the schema(s) "
+              f"in the following chart(s): {e.stderr}")
         return False
 
 def helm_uninstall(release_name, namespace):
@@ -60,13 +65,15 @@ def helm_uninstall(release_name, namespace):
         print(result.stdout)
         return True
     except subprocess.CalledProcessError as e:
-        print(f"Failed to uninstall Helm release: Error: uninstall: Release not loaded: ts-wind-turbine-anomaly: release: not found: {e.stderr}")
+        print(f"Failed to uninstall Helm release: Error: uninstall: Release not loaded: "
+              f"ts-wind-turbine-anomaly: release: not found: {e.stderr}")
         return False
 
 def get_pod_names(namespace):
     """Fetch pod names in the given namespace."""
     try:
-        command = ["kubectl", "get", "pods", "-n", namespace, "-o", "jsonpath={.items[*].metadata.name}"]
+        command = ["kubectl", "get", "pods", "-n", namespace, "-o",
+                   "jsonpath={.items[*].metadata.name}"]
         print(f"Fetching pod names in namespace '{namespace}'...")
         result = utils.run_command(command)
 
@@ -98,7 +105,7 @@ def test_timeseries_microservice_start():
     """Start the Time Series Analytics Microservice."""
     # Check if pods are running
     pod_names = get_pod_names(NAMESPACE)
-    print(f"Found pods in namespace '{NAMESPACE}': {pod_names}") 
+    print(f"Found pods in namespace '{NAMESPACE}': {pod_names}")
     if not pod_names:
         pytest.fail("No pods found in the namespace.")
 
@@ -108,7 +115,7 @@ def test_timeseries_microservice_started_successfully():
     """Start the Time Series Analytics Microservice."""
     # Check if pods are running
     pod_names = get_pod_names(NAMESPACE)
-    print(f"Found pods in namespace '{NAMESPACE}': {pod_names}") 
+    print(f"Found pods in namespace '{NAMESPACE}': {pod_names}")
     if not pod_names:
         pytest.fail("No pods found in the namespace.")
 
@@ -192,7 +199,8 @@ def test_temperature_input():
     Test to check if the temperature simulator script runs without error.
     """
     os.chdir(TS_DIR)
-    command = ["timeout", "20", "python3", "simulator/temperature_input.py", "--port", str(TS_HELM_PORT)]
+    command = ["timeout", "20", "python3", "simulator/temperature_input.py",
+               "--port", str(TS_HELM_PORT)]
     try:
         print("Starting temperature simulator...")
         # Run the simulator for 20 seconds, then terminate
@@ -200,7 +208,7 @@ def test_temperature_input():
         time.sleep(10)
         print("Temperature simulator started successfully.")
         pod_names = get_pod_names(NAMESPACE)
-        print(f"Found pods in namespace '{NAMESPACE}': {pod_names}") 
+        print(f"Found pods in namespace '{NAMESPACE}': {pod_names}")
         if not pod_names:
             pytest.fail("No pods found in the namespace.")
         command = ["kubectl", "logs", "-n", NAMESPACE, pod_names[0]]
@@ -210,4 +218,5 @@ def test_temperature_input():
         output = output.stdout + output.stderr
         assert "is outside the range 20-25." in output
     except RuntimeError as e:
-        pytest.fail(f"Time Series Analytics Microservice failed for the temperature input data: {e}")
+        pytest.fail(f"Time Series Analytics Microservice failed "
+                    f"for the temperature input data: {e}")

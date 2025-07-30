@@ -3,14 +3,17 @@
 # Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
-
-import pytest
-import requests
-import time
+"""
+REST API Utilities Module.
+"""
 import subprocess
 import json
 import os
 import copy
+import time
+from concurrent.futures import ThreadPoolExecutor
+import pytest
+import requests
 
 # Read the config.json file
 TS_DIR = os.path.join(os.getcwd(), "..")
@@ -20,7 +23,7 @@ print(config_file)
 
 def run_command(command):
     """Run a shell command and return the output."""
-    result = subprocess.run(command, capture_output=True, text=True)
+    result = subprocess.run(command, check=False, capture_output=True, text=True)
     if result.returncode != 0:
         raise RuntimeError(f"Command failed: {command}\n{result.stderr}")
     return result
@@ -72,7 +75,8 @@ def input_endpoint(port):
         url = f"http://localhost:{port}/input"
         response = requests.post(url, json=input_data, timeout=10)
         assert response.status_code == 200
-        assert response.json() == {"status": "success", "message": "Data sent to Time Series Analytics microservice"}
+        assert response.json() == {"status": "success",
+                                   "message": "Data sent to Time Series Analytics microservice"}
     except Exception as e:
         pytest.fail(f"Failed to post valid input data: {e}")
 
@@ -183,7 +187,7 @@ def concurrent_api_requests(port):
             return response.status_code, response.text
         except Exception as e:
             return None, str(e)
-    
+
     def post_request(endpoint, data):
         try:
             response = requests.post(url + endpoint, json=data, timeout=10)
@@ -191,12 +195,11 @@ def concurrent_api_requests(port):
         except Exception as e:
             return None, str(e)
 
-    from concurrent.futures import ThreadPoolExecutor
     with ThreadPoolExecutor(max_workers=5) as executor:
         try:
             future_get_health = executor.submit(get_request, endpoints[0])
             future_get_config = executor.submit(get_request, endpoints[1])
-            
+
             # Schedule the POST request
             future_post_alert = executor.submit(post_request, endpoints[2], opcua_alert)
             future_post_input = executor.submit(post_request, endpoints[3], input_data)
@@ -214,18 +217,24 @@ def concurrent_api_requests(port):
             print(f"POST /config: {future_post_config.result()}")
 
             health_status_code = [200, 500, 503]
-            health_status_json = [{"status": "kapacitor daemon is running"}, {"detail": "500: Kapacitor daemon is not running"}, {"status":"Port not accessible and kapacitor daemon not running"}]
+            health_status_json = [{"status": "kapacitor daemon is running"},
+                                  {"detail": "500: Kapacitor daemon is not running"},
+                                  {"status":"Port not accessible and kapacitor daemon not running"}]
             assert get_health_result[0] in health_status_code
             assert json.loads(get_health_result[1]) in health_status_json
             assert get_config_result[0] == 200
-            assert json.loads(get_config_result[1]) == config_file or json.loads(get_config_result[1]) == config_file_alerts
+            assert json.loads(get_config_result[1]) == config_file or \
+                   json.loads(get_config_result[1]) == config_file_alerts
             assert post_alert_result[0] == 500
-            assert post_alert_result[1] == {'detail': '500: OPC UA alerts are not configured in the service'}
+            assert post_alert_result[1] == {'detail': '500: OPC UA alerts '
+            'are not configured in the service'}
             assert future_post_input.result()[0] == 200 or future_post_input.result()[0] == 500
-            assert future_post_input.result()[1] == {"status": "success", "message": "Data sent to Time Series Analytics microservice"} or \
+            assert future_post_input.result()[1] == {"status": "success",
+                                                     "message": "Data sent to Time Series Analytics microservice"} or \
                 future_post_input.result()[1] == {'detail': '500: Kapacitor daemon is not running'}
             assert future_post_config.result()[0] == 200
-            assert future_post_config.result()[1] == {"status": "success", "message": "Configuration updated successfully"}
+            assert future_post_config.result()[1] == {"status": "success",
+                                                      "message": "Configuration updated successfully"}
         except Exception as e:
             pytest.fail(f"Concurrent API requests failed: {e}")
 
@@ -240,7 +249,8 @@ def post_invalid_config_endpoint(port, command):
     try:
         response = requests.post(url, json=invalid_config_data, timeout=10)
         assert response.status_code == 200
-        assert response.json() == {"status": "success", "message": "Configuration updated successfully"}
+        assert response.json() == {"status": "success",
+                                   "message": "Configuration updated successfully"}
         time.sleep(15)  # Wait for the configuration to be applied
         output = run_command(command)
         output = output.stdout + output.stderr

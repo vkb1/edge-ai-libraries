@@ -4,10 +4,14 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+"""
+Docker Tests for Time Series Analytics Microservice.
+"""
+
 import subprocess
 import os
-import pytest
 import time
+import pytest
 import rest_api_utils as utils
 
 CONTAINER_NAME = "ia-time-series-analytics-microservice"
@@ -23,7 +27,7 @@ def build_docker_image():
     """Build the Docker image for the Time Series Analytics service."""
     print("Building Docker image...")
     os.chdir(os.path.join(TS_DIR, "docker"))
-    command = ["docker", "compose", "build", "--no-cache"]
+    command = ["docker", "compose", "build"]
     output = utils.run_command(command)
     print(output.stdout.strip())
 
@@ -83,7 +87,8 @@ def test_timeseries_microservice_started_successfully():
 # Test to check if Time Series Analytics Microservice is built and running
 def test_test_timeseries_microservice_start():
     """
-    Test to check if 'Time Series Analytics Microservice Initialized Successfully. Ready to Receive the Data...' 
+    Test to check if 'Time Series Analytics Microservice Initialized Successfully. 
+    Ready to Receive the Data...' 
     is present in the Time Series Analytics Microservice container logs.
     """
     try:
@@ -98,8 +103,11 @@ def test_test_timeseries_microservice_start():
 
 ## REST API Tests
 
+# Get health check /health endpoint
 def test_health_check():
-    # Get health check /health endpoint
+    """
+    Test the health check endpoint of the Time Series Analytics service.
+    """
     print("Testing health check endpoint in utils...")
     utils.health_check(TS_DOCKER_PORT)
 
@@ -161,7 +169,8 @@ def test_temperature_input():
     os.chdir(TS_DIR)
     command = ["pip3", "install", "-r", "simulator/requirements.txt"]
     utils.run_command(command)
-    command = ["timeout", "20", "python3", "simulator/temperature_input.py", "--port", str(TS_DOCKER_PORT)]
+    command = ["timeout", "20", "python3", "simulator/temperature_input.py",
+               "--port", str(TS_DOCKER_PORT)]
     try:
         print("Starting temperature simulator...")
         # Run the simulator for 20 seconds, then terminate
@@ -175,4 +184,5 @@ def test_temperature_input():
         output = output.stdout + output.stderr
         assert "is outside the range 20-25." in output
     except RuntimeError as e:
-        pytest.fail(f"Time Series Analytics Microservice failed for the temperature input data: {e}")
+        pytest.fail(f"Time Series Analytics Microservice failed for "
+                    f"the temperature input data: {e}")
