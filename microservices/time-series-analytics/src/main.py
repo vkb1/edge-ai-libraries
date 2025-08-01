@@ -5,10 +5,10 @@
 #
 
 """
-Time Series Analytics Microservice.
+Time Series Analytics Microservice's main module
 
-This module provides a FastAPI-based microservice for time series analytics,
-including data ingestion, configuration management, and OPC UA alerts.
+This module exposes FastAPI server providing capabilities for data ingestion,
+configuration management, and OPC UA alerts.
 """
 import os
 import logging

@@ -148,8 +148,8 @@ class OpcuaAlerts:
             logger.info("ALERT sent to OPC UA server: %s", alert_message_text)
         except Exception as error:
             logger.error("%s", error)
-            raise RuntimeError("Failed to send alert to OPC UA server node %s: %s",
-                               self.node_id, error)
+            raise RuntimeError(f"Failed to send alert to OPC UA server node \
+                               {self.node_id}: {error}")
 
     async def is_connected(self) -> bool:
         """

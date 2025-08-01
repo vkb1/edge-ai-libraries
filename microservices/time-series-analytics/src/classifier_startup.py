@@ -131,12 +131,20 @@ class KapacitorClassifier():
 
         python_package_requirement_file = "/tmp/" + dir_name + "/udfs/requirements.txt"
         python_package_installation_path = "/tmp/py_package"
-        subprocess.run(["mkdir", "-p", python_package_installation_path], check=False)
+        status = subprocess.run(["mkdir", "-p", python_package_installation_path], check=False)
+        if status.returncode != SUCCESS:
+            self.logger.error("Failed to create directory %s for installing python packages.",
+                              python_package_installation_path)
+            return False
         if os.path.isfile(python_package_requirement_file):
-            subprocess.run([
+            status = subprocess.run([
                 "pip3", "install", "-r", python_package_requirement_file,
                 "--target", python_package_installation_path
             ], check=False)
+            if status.returncode != SUCCESS:
+                self.logger.error("Failed to install python packages from %s",
+                                  python_package_requirement_file)
+                return False
 
     def start_kapacitor(self,
                         kapacitor_url_hostname,
