@@ -47,10 +47,6 @@ RUN export no_proxy= && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-RUN wget https://registrationcenter-download.intel.com/akdlm/IRC_NAS/cca951e1-31e7-485e-b300-fe7627cb8c08/intel-oneapi-base-toolkit-2025.1.0.651_offline.sh
-
-RUN sh ./intel-oneapi-base-toolkit-2025.1.0.651_offline.sh -a --silent --cli --eula accept
-
 RUN  apt update && apt install -y cmake pkg-config build-essential
 
 ARG TIMESERIES_UID
@@ -124,4 +120,4 @@ USER $TIMESERIES_USER_NAME
 # Simple healthcheck to verify container is running
 HEALTHCHECK --interval=5m CMD exit 0
 
-ENTRYPOINT ["bash", "-c", "source /opt/intel/oneapi/setvars.sh && python3 main.py"]
+ENTRYPOINT ["python3", "main.py"]
