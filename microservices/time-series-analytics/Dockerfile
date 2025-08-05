@@ -11,7 +11,7 @@ FROM kapacitor:$KAPACITOR_VERSION
 # Install Python and necessary packages in a single layer, minimize image size
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        python3 python3-pip git ca-certificates intel-gpu-tools cmake pkg-config build-essential && \
+        python3 python3-pip git ca-certificates intel-gpu-tools && \
     python3 -m pip install --no-cache-dir --upgrade pip && \
     apt-get purge -y --auto-remove && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /root/.cache/pip
@@ -108,7 +108,7 @@ RUN if [ "$COPYLEFT_SOURCES" = "true" ]; then \
 
 WORKDIR /app
 # Remove git and clean up to reduce image size
-RUN apt-get purge -y --auto-remove git cmake pkg-config && \
+RUN apt-get purge -y --auto-remove git && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /root/.cache/pip
 
 # Switch to non-root user for security
