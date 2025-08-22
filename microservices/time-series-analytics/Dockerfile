@@ -26,7 +26,7 @@ RUN git clone --depth 1 --filter=blob:none --sparse --branch v${KAPACITOR_VERSIO
     mv /tmp/kapacitor/udf/agent/py /app/kapacitor_python && \
     rm -rf /tmp/kapacitor
 
-RUN apt-get update && apt-get install -y intel-gpu-tools
+RUN apt-get update && apt-get install -y --no-install-recommends intel-gpu-tools
 
 RUN export no_proxy= && \
     apt-get update && \
