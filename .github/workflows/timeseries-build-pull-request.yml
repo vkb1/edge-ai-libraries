@@ -59,7 +59,7 @@ jobs:
           persist-credentials: false
     - name: Build
       run: |
-        pwd && tree
+        cd "${{ github.workspace }}"
         cd ./microservices/time-series-analytics/docker
         sed -i "s/DOCKER_REGISTRY=.*/DOCKER_REGISTRY=admin/g" .env
         docker compose down -v 
