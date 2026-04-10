@@ -276,7 +276,7 @@ paths:
         - If `SAMPLE_APP` env var is set -> `/tmp/<SAMPLE_APP>/`
         - Otherwise -> `/tmp/<tar_filename_without_extension>/`
 
-        **Allowed file extensions**: `.py`, `.tick`, `.txt`, `.cb`, `.pkl`,
+        **Allowed file extensions**: `.py`, `.tick`, `.txt`, `.cb`, `.pkl`, `.json`
         `.joblib`, `.xml`, `.bin`, `.onnx`, `.pt`, `.pth`
       operationId: udfs_package_post
       requestBody:
@@ -296,7 +296,7 @@ paths:
         '400':
           description: >-
             Invalid upload - file is not a .tar, archive is corrupt, failed security
-            scan (path traversal, symlink, disallowed extension),
+            scan (path traversal, symlink, encrypted payload, tar-bomb expansion),
             or required folders/files are missing
           content:
             application/json:
@@ -307,7 +307,7 @@ paths:
           content:
             application/json:
               example:
-                detail: Uploaded file exceeds the maximum allowed size of 500 MB.
+                detail: Uploaded file exceeds the maximum allowed size of 100 MB.
         '422':
           description: Validation Error
           content:

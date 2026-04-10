@@ -537,7 +537,7 @@ async def config_file_change(config_data: Config, background_tasks: BackgroundTa
     return {"status": "success", "message": "Configuration updated successfully"}
 
 
-def _scan_tar(tf: tarfile.TarFile) -> None:
+def _scan_tar(tf: tarfile.TarFile, archive_size_bytes: int) -> None:
     """Scan a TarFile for security issues before extraction.
 
     Raises HTTPException(400) for any detected threat.
@@ -547,6 +547,8 @@ def _scan_tar(tf: tarfile.TarFile) -> None:
     _TAR_MAX_TOTAL_BYTES       = max_file_size * 1024 * 1024   # 100 MB total
     _TAR_MAX_SINGLE_FILE_BYTES = max_file_size * 1024 * 1024   # 100 MB per entry
     _TAR_MAX_FILE_COUNT        = 100
+    _TAR_MAX_EXPANSION_RATIO   = 100
+    _TAR_ENCRYPTED_EXTENSIONS  = {".enc", ".gpg", ".pgp", ".age", ".aes"}
     _TAR_ALLOWED_EXTENSIONS    = {
         ".py", ".tick", ".txt", ".cb",
         ".pkl", ".joblib", ".xml", ".bin", ".onnx", ".pt", ".pth", ".json",
@@ -584,7 +586,15 @@ def _scan_tar(tf: tarfile.TarFile) -> None:
         if info.isdir():
             continue
 
-        # 5. Allowed file extensions
+        # 5. Encrypted payload detection
+        _, ext = os.path.splitext(name.lower())
+        if ext in _TAR_ENCRYPTED_EXTENSIONS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Encrypted file '{name}' is not allowed in the UDF deployment package."
+            )
+
+        # 6. Allowed file extensions
         _, ext = os.path.splitext(name.lower())
         if ext not in _TAR_ALLOWED_EXTENSIONS:
             raise HTTPException(
@@ -592,7 +602,14 @@ def _scan_tar(tf: tarfile.TarFile) -> None:
                 detail=f"File type '{ext}' is not allowed in the UDF deployment package: {name}"
             )
 
-        # 6. Single-file size limit
+        # 7. Reject sparse files to prevent low-size/high-expansion tar-bomb payloads.
+        if getattr(info, "sparse", None):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Sparse file '{name}' is not allowed in the UDF deployment package."
+            )
+
+        # 8. Single-file size limit
         if info.size > _TAR_MAX_SINGLE_FILE_BYTES:
             raise HTTPException(
                 status_code=400,
@@ -601,14 +618,26 @@ def _scan_tar(tf: tarfile.TarFile) -> None:
 
         total_size += info.size
 
-    # 7. Total size limit
+    # 9. Total size limit
     if total_size > _TAR_MAX_TOTAL_BYTES:
         raise HTTPException(
             status_code=400,
             detail=f"Total size exceeds the maximum allowed limit of {_TAR_MAX_TOTAL_BYTES // (1024*1024)} MB."
         )
 
-    # 8. Required folder structure validation
+    # 10. Tar-bomb style expansion-ratio detection
+    effective_archive_size = max(archive_size_bytes, 1)
+    expansion_ratio = total_size / effective_archive_size
+    if expansion_ratio > _TAR_MAX_EXPANSION_RATIO:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Suspicious archive expansion ratio ({expansion_ratio:.0f}x) detected. "
+                "Possible tar bomb."
+            )
+        )
+
+    # 11. Required folder structure validation
     # Collect normalized paths of file entries only (not directories)
     file_names = [e.name.replace("\\", "/") for e in entries if not e.isdir()]
 
@@ -642,10 +671,10 @@ def _scan_tar(tf: tarfile.TarFile) -> None:
 
 
 @app.post("/udfs/package", responses={
-    400: {"description": "Invalid file — not a .tar, corrupt archive, failed security scan, or missing required folders",
+    400: {"description": "Invalid file — not a .tar, corrupt archive, failed security scan (path traversal, symlink, encrypted payload, tar-bomb expansion), or missing required folders",
           "content": {"application/json": {"example": {"detail": "Tar archive must contain a 'udfs/' folder with at least one .py file."}}}},
     413: {"description": "Uploaded file exceeds the maximum allowed size",
-          "content": {"application/json": {"example": {"detail": "Uploaded file exceeds the maximum allowed size of 500 MB."}}}},
+          "content": {"application/json": {"example": {"detail": "Uploaded file exceeds the maximum allowed size of 100 MB."}}}},
     500: {"description": "Failed to extract the UDF deployment package on the server",
           "content": {"application/json": {"example": {"detail": "Failed to extract UDF deployment package."}}}},
 })
@@ -672,7 +701,7 @@ async def adds_udf_deployment_package(file: UploadFile = File(...)):
     - If `SAMPLE_APP` env var is set → `/tmp/<SAMPLE_APP>/`
     - Otherwise → `/tmp/<tar_filename_without_extension>/`
 
-    **Allowed file extensions**: `.py`, `.tick`, `.txt`, `.cb`, `.pkl`, ".json",
+    **Allowed file extensions**: `.py`, `.tick`, `.txt`, `.cb`, `.pkl`, `.json`,
     `.joblib`, `.xml`, `.bin`, `.onnx`, `.pt`, `.pth`
 
     responses:
@@ -692,7 +721,8 @@ async def adds_udf_deployment_package(file: UploadFile = File(...)):
         400:
             description: >
                 Invalid upload — file is not a .tar, archive is corrupt, failed security
-                scan (path traversal, symlink, disallowed extension),
+                scan (path traversal, symlink, encrypted payload, tar-bomb expansion,
+                disallowed extension),
                 or required folders/files are missing
             content:
                 application/json:
@@ -711,7 +741,7 @@ async def adds_udf_deployment_package(file: UploadFile = File(...)):
                         properties:
                             detail:
                                 type: string
-                                example: "Uploaded file exceeds the maximum allowed size of 500 MB."
+                                example: "Uploaded file exceeds the maximum allowed size of 100 MB."
         500:
             description: Server failed to extract the UDF deployment package
             content:
@@ -753,7 +783,7 @@ async def adds_udf_deployment_package(file: UploadFile = File(...)):
 
     with tf:
         # Security scan before extraction
-        _scan_tar(tf)
+        _scan_tar(tf, archive_size_bytes=received)
 
         # Reserved names that must not be used as extraction directory names
         # to avoid colliding with service-critical paths under SECURE_TEMP_DIR.
