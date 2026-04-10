@@ -549,7 +549,7 @@ def _scan_tar(tf: tarfile.TarFile) -> None:
     _TAR_MAX_FILE_COUNT        = 100
     _TAR_ALLOWED_EXTENSIONS    = {
         ".py", ".tick", ".txt", ".cb",
-        ".pkl", ".joblib", ".xml", ".bin", ".onnx", ".pt", ".pth",
+        ".pkl", ".joblib", ".xml", ".bin", ".onnx", ".pt", ".pth", ".json",
     }
     entries = tf.getmembers()
 
@@ -672,7 +672,7 @@ async def adds_udf_deployment_package(file: UploadFile = File(...)):
     - If `SAMPLE_APP` env var is set → `/tmp/<SAMPLE_APP>/`
     - Otherwise → `/tmp/<tar_filename_without_extension>/`
 
-    **Allowed file extensions**: `.py`, `.tick`, `.txt`, `.cb`, `.pkl`,
+    **Allowed file extensions**: `.py`, `.tick`, `.txt`, `.cb`, `.pkl`, ".json",
     `.joblib`, `.xml`, `.bin`, `.onnx`, `.pt`, `.pth`
 
     responses:
