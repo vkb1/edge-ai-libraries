@@ -154,6 +154,20 @@ Cross-repo workflows in `edge-ai-suites`:
 - `industrial-edge-insights-time-series-scans.yml`: Trivy, Bandit, ClamAV, Docker Bench, CodeQL, Pylint scans for the sample app layer.
 - `industrial-edge-insights-time-series-tests.yml`: Daily functional tests for both time-series and multimodal apps.
 
+## Compliance Requirements
+
+- **License Header**: Every source file (`.py`, `.sh`, `.yaml`, `.yml`) must include an Apache-2.0 SPDX license header.
+- **No Secrets**: Never commit passwords, tokens, API keys, or credentials. Use GitHub Secrets or environment variables.
+- **Third-Party Dependencies**: When adding new dependencies, declare them in the PR with name, version, and license. Ensure compatibility with Apache-2.0.
+- **Security Scans**: All code must pass CodeQL, Bandit (Python), Trivy (container/filesystem), Pylint, and ClamAV checks that run in CI.
+
+## PR Guidelines
+
+- Follow the PR template: description, dependency declaration, testing evidence, compliance checklist.
+- Keep changes focused—do not mix unrelated refactors.
+- Ensure existing unit tests and functional tests pass before submitting.
+- Review CODEOWNERS for required reviewers (`@vkb1 @sathyendranv @pooja-intel @SudarshanaPanda @rashmihe`).
+
 ## Validation Before Finishing
 
 1. Run unit tests: `cd microservices/time-series-analytics && ./tests/run_tests.sh`
