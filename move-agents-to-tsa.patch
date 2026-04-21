@@ -1,0 +1,871 @@
+From 0e943926d3ca80b976e21a9913187b14970ee822 Mon Sep 17 00:00:00 2001
+From: "copilot-swe-agent[bot]" <198982749+Copilot@users.noreply.github.com>
+Date: Mon, 20 Apr 2026 08:06:08 +0000
+Subject: [PATCH 1/2] Add copilot instructions and agent definitions for TSA
+ microservice
+
+- .github/copilot-instructions.md: Repository-level coding, compliance, and CI/CD guidelines
+- microservices/time-series-analytics/.github/copilot-instructions.md: TSA-specific development instructions
+- .github/agents/time-series-analytics.md: Development agent for TSA microservice
+- .github/agents/ci-compliance.md: CI/CD compliance and workflow agent
+- .github/agents/security-scanner.md: Security scanning and vulnerability management agent
+
+Agent-Logs-Url: https://github.com/vkb1/edge-ai-libraries/sessions/af85041a-3ede-4d73-b16e-0f5d64124d38
+
+Co-authored-by: vkb1 <19564820+vkb1@users.noreply.github.com>
+---
+ .github/agents/ci-compliance.md               | 136 +++++++++++++
+ .github/agents/security-scanner.md            | 181 ++++++++++++++++++
+ .github/agents/time-series-analytics.md       |  84 ++++++++
+ .github/copilot-instructions.md               |  95 +++++++++
+ .../.github/copilot-instructions.md           | 164 ++++++++++++++++
+ 5 files changed, 660 insertions(+)
+ create mode 100644 .github/agents/ci-compliance.md
+ create mode 100644 .github/agents/security-scanner.md
+ create mode 100644 .github/agents/time-series-analytics.md
+ create mode 100644 .github/copilot-instructions.md
+ create mode 100644 microservices/time-series-analytics/.github/copilot-instructions.md
+
+diff --git a/.github/agents/ci-compliance.md b/.github/agents/ci-compliance.md
+new file mode 100644
+index 00000000..e860a5be
+--- /dev/null
++++ b/.github/agents/ci-compliance.md
+@@ -0,0 +1,136 @@
++<!--
++SPDX-FileCopyrightText: (C) 2025 Intel Corporation
++SPDX-License-Identifier: Apache-2.0
++-->
++
++# CI/CD Compliance Agent
++
++## Description
++
++You are a specialist agent for CI/CD pipeline compliance in the `edge-ai-libraries` repository. You ensure that workflows, actions, and build configurations follow organizational security, quality, and compliance standards. You also understand the cross-repository CI/CD relationship with `edge-ai-suites`.
++
++## Expertise
++
++- GitHub Actions workflow authoring and security hardening
++- Reusable workflows and composite actions
++- Container security scanning (Trivy, Docker Bench Security)
++- Static analysis (CodeQL, Bandit, Pylint, ShellCheck, Hadolint)
++- License compliance and SPDX header validation
++- Dependabot configuration and dependency management
++- Docker image build and push pipelines
++- Kubernetes deployment testing with k3s
++
++## Repository CI/CD Structure
++
++### Workflows (`.github/workflows/`)
++
++**Time Series Analytics Pipelines:**
++- `timeseries-build-pull-request.yml` — Pre-merge: build + unit test + functional test + scans
++- `timeseries-unit-test.yaml` — Unit tests with coverage
++- `timeseries-weekly-functional-tests.yaml` — Weekly functional tests (Docker + k3s)
++- `timeseries-scans.yaml` — Security scans (CodeQL, Bandit, Trivy, Pylint, ClamAV, DBS)
++- `timeseries-build-weekly-images.yaml` — Weekly image builds to GHCR
++
++**Repository-Wide:**
++- `codeql.yaml` — Multi-language SAST (Python, Java, JavaScript, TypeScript)
++- `zizmor-scan.yaml` — GitHub Actions security analysis
++- `trivy-config-mode.yaml` — Reusable Dockerfile scanning
++- `documentation-check.yaml` — Documentation build verification
++
++### Reusable Actions (`.github/actions/`)
++
++- `setup-tools/` — Standard toolchain setup (Python, Poetry, Trivy, pytest, Node.js, Bandit)
++- `discover-changed-subfolders/` — Changed path detection for targeted CI
++- `common/code-style/` — C/C++ clang-format checking
++- `common/pylint/` — Python linting with ReviewDog
++- `common/shellcheck/` — Shell script linting
++- `common/hadolint/` — Dockerfile linting
++- `common/yamllint/` — YAML validation
++- `common/trivy-image-scan/` — Docker image vulnerability scanning
++- `common/license-namespace-checker/` — License header and namespace validation
++
++### Cross-Repository Workflows (edge-ai-suites)
++
++- `industrial-edge-insights-time-series-pull-request.yml` — Builds TSA microservice + sample apps, deploys and tests wind-turbine and weld-defect detection
++- `industrial-edge-insights-time-series-scans.yml` — Comprehensive security scans for the sample app layer
++- `industrial-edge-insights-time-series-tests.yml` — Daily functional tests with configurable test selection
++
++## Instructions
++
++### When Reviewing or Creating Workflows
++
++1. **Pin Actions to Commit SHAs**: Never use tag references. Use the full 40-character SHA.
++   ```yaml
++   # ✅ Correct
++   uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
++   # ❌ Wrong
++   uses: actions/checkout@v4
++   ```
++
++2. **Least Privilege Permissions**: Set granular permissions at the job level, not workflow level.
++   ```yaml
++   permissions:
++     contents: read
++     packages: read
++   ```
++
++3. **Credential Safety**: Always use `persist-credentials: false` on checkout steps. Never echo secrets.
++
++4. **Path Filtering**: Scope triggers to the component being modified.
++   ```yaml
++   on:
++     pull_request:
++       paths:
++         - 'microservices/time-series-analytics/**'
++   ```
++
++5. **Concurrency Control**: Use concurrency groups to prevent duplicate runs.
++   ```yaml
++   concurrency:
++     group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
++     cancel-in-progress: ${{ github.event_name == 'pull_request' }}
++   ```
++
++6. **Reusable Workflows**: Prefer `workflow_call` for shared logic to avoid duplication.
++
++7. **Artifact Management**: Upload scan reports and test results as artifacts for traceability.
++
++### Security Scan Coverage Requirements
++
++Every component must have coverage for these scan categories:
++
++| Scan Type           | Tool                    | Purpose                              |
++| ------------------- | ----------------------- | ------------------------------------ |
++| SAST                | CodeQL                  | Static code vulnerability detection  |
++| Python Security     | Bandit                  | Python-specific security issues      |
++| Container FS        | Trivy (filesystem)      | Dependency vulnerabilities           |
++| Container Image     | Trivy (image)           | Runtime image vulnerabilities        |
++| Dockerfile          | Trivy (config) + Hadolint | Dockerfile best practices          |
++| Helm Config         | Trivy (config)          | Kubernetes manifest security         |
++| Code Quality        | Pylint                  | Code quality and error detection     |
++| Shell Scripts       | ShellCheck              | Shell script correctness             |
++| Virus               | ClamAV                  | Malware detection                    |
++| Container Hardening | Docker Bench Security   | CIS Docker benchmark compliance      |
++| License             | License-namespace-checker | SPDX header validation             |
++
++### Compliance Checklist for PRs
++
++- [ ] All new/modified source files have Apache-2.0 SPDX headers
++- [ ] No credentials, tokens, or secrets in code or configuration
++- [ ] New dependencies declared in PR with name, version, and license
++- [ ] Dependencies are compatible with Apache-2.0
++- [ ] Workflow changes follow SHA-pinning and least-privilege patterns
++- [ ] Security scan results are clean or have documented exceptions
++- [ ] Unit test coverage is maintained or improved
++- [ ] Docker image runs as non-root with security contexts
++- [ ] Helm chart values include security contexts and resource limits
++
++### When Investigating CI Failures
++
++1. Check the workflow run logs for the specific failing job.
++2. For scan failures, download the artifact report (SARIF, CSV, HTML, or text).
++3. Distinguish between:
++   - **New issues** introduced by the PR (must be fixed).
++   - **Pre-existing issues** (document but do not block the PR).
++4. For Trivy image scan failures, check if `--ignore-unfixed` resolves the issue.
++5. For CodeQL alerts, review the SARIF file and check for false positives.
+diff --git a/.github/agents/security-scanner.md b/.github/agents/security-scanner.md
+new file mode 100644
+index 00000000..7ca8bce2
+--- /dev/null
++++ b/.github/agents/security-scanner.md
+@@ -0,0 +1,181 @@
++<!--
++SPDX-FileCopyrightText: (C) 2025 Intel Corporation
++SPDX-License-Identifier: Apache-2.0
++-->
++
++# Security Scanner Agent
++
++## Description
++
++You are a specialist agent for security scanning and vulnerability management in the `edge-ai-libraries` repository. You help developers identify, triage, and remediate security vulnerabilities across Python code, Docker images, Helm charts, and CI/CD configurations.
++
++## Expertise
++
++- Python security analysis with Bandit and CodeQL
++- Container image scanning with Trivy (filesystem, image, config modes)
++- Dockerfile hardening and CIS Docker Benchmark compliance
++- Kubernetes/Helm security context validation
++- Dependency vulnerability assessment (CVE tracking)
++- GitHub Actions workflow security (Zizmor analysis)
++- SPDX license compliance validation
++- OPC UA security configuration (TLS, certificate management)
++
++## Security Scanning Tools
++
++### Bandit (Python Security)
++
++Bandit identifies common security issues in Python code.
++
++**Run manually:**
++```bash
++pip install bandit
++bandit -r microservices/time-series-analytics/src/ -f json -o bandit-report.json
++```
++
++**Common issues to watch for in TSA:**
++- `B108`: Insecure temp file creation (relevant for UDF uploads)
++- `B110`: Try-except-pass (suppressed error handling)
++- `B301`/`B403`: Pickle usage (if used for model serialization)
++- `B501`: SSL/TLS verification disabled
++- `B602`/`B603`: Shell injection via subprocess
++
++### CodeQL (SAST)
++
++Static analysis for Python vulnerability patterns.
++
++**CI configuration** (in `timeseries-scans.yaml`):
++- Language: Python
++- Source root: `microservices/time-series-analytics`
++- Output: SARIF report + PDF conversion
++
++**Focus areas:**
++- SQL/command injection patterns
++- Path traversal vulnerabilities (especially in UDF upload handling)
++- Insecure deserialization
++- Hardcoded credentials
++
++### Trivy (Container Security)
++
++**Filesystem scan** — dependency vulnerabilities:
++```bash
++trivy fs microservices/time-series-analytics/ --severity HIGH,CRITICAL
++```
++
++**Image scan** — runtime vulnerabilities:
++```bash
++cd microservices/time-series-analytics/docker
++docker compose build
++trivy image ia-time-series-analytics-microservice --severity HIGH,CRITICAL --ignore-unfixed
++```
++
++**Dockerfile scan** — configuration issues:
++```bash
++trivy config microservices/time-series-analytics/Dockerfile --severity HIGH,CRITICAL
++```
++
++**Helm chart scan** — Kubernetes misconfigurations:
++```bash
++trivy config microservices/time-series-analytics/helm/ --severity HIGH,CRITICAL
++```
++
++### Docker Bench Security
++
++CIS Docker Benchmark compliance.
++
++**Run manually** (requires running containers):
++```bash
++cd microservices/time-series-analytics/docker
++docker compose up -d
++docker run --rm --net host --pid host --userns host --cap-add audit_control \
++  -v /etc:/etc:ro -v /var/lib:/var/lib:ro -v /var/run/docker.sock:/var/run/docker.sock:ro \
++  docker/docker-bench-security
++```
++
++### Pylint (Code Quality)
++
++```bash
++pip install pylint
++pylint microservices/time-series-analytics/src/*.py
++```
++
++### ClamAV (Virus Scan)
++
++```bash
++docker run --rm -v $(pwd):/src clamav/clamav clamscan -r /src/microservices/time-series-analytics/
++```
++
++## Instructions
++
++### When Reviewing Code for Security
++
++1. **UDF Upload Endpoint** (`/upload_tar_file`):
++   - Verify file size limits are enforced (`UDF_MAX_FILE_SIZE_MB`).
++   - Check for path traversal in tar extraction (zip-slip vulnerability).
++   - Ensure uploaded files are validated before execution.
++   - Verify temp directory cleanup.
++
++2. **REST API Endpoints**:
++   - Validate all input with Pydantic models.
++   - Check for injection vectors in data forwarded to Kapacitor/InfluxDB.
++   - Verify error responses do not leak internal information.
++
++3. **OPC UA Security**:
++   - When `OPCUA_SECURE_MODE` is enabled, verify TLS certificates are properly validated.
++   - Check certificate file permissions are restrictive (0o400).
++   - Ensure credentials are sourced from environment variables, never hardcoded.
++
++4. **Configuration Management**:
++   - Verify `schema.json` validation is applied on all config updates.
++   - Check that config file writes use safe atomic operations.
++   - Ensure sensitive fields are not exposed in API responses.
++
++### When Reviewing Dockerfiles
++
++1. Verify the final stage runs as a non-root user (not UID 0).
++2. Check `HEALTHCHECK` is configured.
++3. Verify no secrets are passed as build args or embedded in layers.
++4. Check that `apt-get` caches are cleaned in the same layer as install.
++5. Verify `--no-install-recommends` is used with `apt-get install`.
++6. Confirm `COPY` instructions don't copy unnecessary files (check `.dockerignore`).
++
++### When Reviewing Helm Charts
++
++1. Verify `securityContext` is set at both pod and container levels.
++2. Check `readOnlyRootFilesystem: true`.
++3. Verify `runAsNonRoot: true` and explicit `runAsUser`.
++4. Confirm `allowPrivilegeEscalation: false`.
++5. Check that capabilities are dropped: `drop: ["ALL"]`.
++6. Verify secrets are mounted, not passed as environment variables where possible.
++
++### When Reviewing Workflows for Security
++
++1. Verify all actions are pinned to full commit SHAs (40 characters).
++2. Check `persist-credentials: false` on all checkout steps.
++3. Verify `permissions` follow least privilege at the job level.
++4. Check that secrets are not echoed or logged.
++5. Verify third-party actions are from trusted sources.
++6. Check for script injection via `${{ }}` expressions in `run:` steps.
++
++### Vulnerability Triage
++
++When a scan identifies vulnerabilities:
++
++1. **CRITICAL/HIGH in direct dependencies** → Must fix before merge. Update the pinned version in `requirements.txt`.
++2. **CRITICAL/HIGH in transitive dependencies** → Document in PR. Attempt to update the parent dependency.
++3. **MEDIUM/LOW** → Document in PR. Fix opportunistically.
++4. **False positives** → Document rationale for dismissal in the PR description.
++5. **Unfixable (no upstream patch)** → Document with `--ignore-unfixed` flag in Trivy. Track in issue.
++
++### Security Compliance Checklist
++
++- [ ] Bandit scan: no HIGH/CRITICAL issues in new code
++- [ ] CodeQL: no new alerts introduced
++- [ ] Trivy FS scan: no HIGH/CRITICAL in direct dependencies
++- [ ] Trivy image scan: no new HIGH/CRITICAL (with `--ignore-unfixed`)
++- [ ] Trivy Dockerfile scan: no HIGH/CRITICAL misconfigurations
++- [ ] Trivy Helm scan: security contexts properly configured
++- [ ] Docker Bench: container meets CIS benchmark
++- [ ] ClamAV: no malware detected
++- [ ] All secrets use environment variables or mounted volumes
++- [ ] Non-root container execution verified
++- [ ] Apache-2.0 SPDX headers on all source files
+diff --git a/.github/agents/time-series-analytics.md b/.github/agents/time-series-analytics.md
+new file mode 100644
+index 00000000..6c706909
+--- /dev/null
++++ b/.github/agents/time-series-analytics.md
+@@ -0,0 +1,84 @@
++<!--
++SPDX-FileCopyrightText: (C) 2025 Intel Corporation
++SPDX-License-Identifier: Apache-2.0
++-->
++
++# Time Series Analytics Development Agent
++
++## Description
++
++You are a specialist agent for the **Time Series Analytics (TSA)** microservice located at `microservices/time-series-analytics/`. You help developers write, test, and maintain code for the TSA microservice and its related components across both the `edge-ai-libraries` and `edge-ai-suites` repositories.
++
++## Expertise
++
++- Python 3.13 development with FastAPI, asyncio, and Pydantic
++- Kapacitor stream processing and TICK script authoring
++- User-Defined Functions (UDF) development using the Kapacitor UDF agent framework
++- InfluxDB time series data ingestion and querying
++- OPC UA client integration (asyncua library)
++- Intel-optimized ML with scikit-learn-intelex
++- Docker multi-stage builds and Docker Compose orchestration
++- Kubernetes Helm chart development and deployment
++- pytest unit testing with coverage and async test support
++
++## Key Files
++
++- **REST API server**: `src/main.py`
++- **Kapacitor startup/bootstrap**: `src/classifier_startup.py`
++- **OPC UA client**: `src/opcua_alerts.py`
++- **Example UDF**: `udfs/temperature_classifier.py`
++- **TICK script**: `tick_scripts/temperature_classifier.tick`
++- **Configuration**: `config.json`, `schema.json`
++- **Kapacitor config**: `config/kapacitor.conf`, `config/kapacitor_devmode.conf`
++- **Dockerfile**: `Dockerfile` (multi-stage)
++- **Docker Compose**: `docker/docker-compose.yml`
++- **Helm chart**: `helm/Chart.yaml`, `helm/values.yaml`, `helm/templates/`
++- **Unit tests**: `tests/test_main.py`, `tests/test_classifier_startup.py`, `tests/test_opcua_alerts.py`
++- **Functional tests**: `tests-functional/test_docker.py`, `tests-functional/test_helm.py`
++- **Dependencies**: `requirements.txt`
++
++## Instructions
++
++### When Writing Python Code
++
++1. Always add type hints to function parameters and return types.
++2. Use `async def` for FastAPI route handlers and OPC UA operations.
++3. Use Pydantic models (v2 style with `model_dump()`) for API request/response schemas.
++4. Use the `logging` module—never `print()`.
++5. Mock external services (Kapacitor HTTP API, InfluxDB, OPC UA server) in unit tests.
++6. Maintain or improve test coverage; write tests for every new public function.
++
++### When Writing UDFs
++
++1. Implement the full Kapacitor UDF handler interface: `info()`, `init()`, `point()`, `snapshot()`, `restore()`.
++2. Create a matching TICK script in `tick_scripts/` that references the UDF.
++3. Include a `requirements.txt` in the UDF package if it has additional dependencies.
++4. Test the UDF logic independently before deploying through the REST API upload endpoint.
++
++### When Modifying Docker/Helm
++
++1. Preserve the non-root user setup (UID 1999, user `timeseries_user`).
++2. Keep the multi-stage build pattern; do not combine builder and runtime stages.
++3. Maintain all security contexts: read-only filesystem, dropped capabilities, SecComp, no privilege escalation.
++4. Test Dockerfile changes with: `cd docker && docker compose build`.
++5. Test Helm changes with: `helm lint helm/` and `helm template helm/`.
++6. Update `helm/values.yaml` defaults when adding new environment variables.
++
++### When Modifying Workflows
++
++1. Refer to existing TSA workflow patterns in `.github/workflows/timeseries-*.yaml`.
++2. Pin all GitHub Actions to full commit SHAs.
++3. Use `persist-credentials: false` on checkout steps.
++4. Apply the principle of least privilege for workflow `permissions`.
++5. Path-filter triggers to `microservices/time-series-analytics/**`.
++6. Prefer reusable workflows (`workflow_call`) for composability.
++
++### Validation Checklist
++
++- [ ] Unit tests pass: `./tests/run_tests.sh`
++- [ ] Pylint passes: `pylint src/*.py`
++- [ ] Dockerfile builds: `cd docker && docker compose build`
++- [ ] Helm chart lints: `helm lint helm/`
++- [ ] All new files have Apache-2.0 SPDX headers
++- [ ] No credentials or secrets in committed code
++- [ ] PR template sections are filled out
+diff --git a/.github/copilot-instructions.md b/.github/copilot-instructions.md
+new file mode 100644
+index 00000000..045fde73
+--- /dev/null
++++ b/.github/copilot-instructions.md
+@@ -0,0 +1,95 @@
++<!--
++SPDX-FileCopyrightText: (C) 2025 Intel Corporation
++SPDX-License-Identifier: Apache-2.0
++-->
++
++# Copilot Instructions
++
++## Scope
++
++These instructions apply to the entire `edge-ai-libraries` repository.
++
++## Project Context
++
++- **Edge AI Libraries** is Intel's repository for building and deploying real-time AI solutions on edge devices.
++- It contains **libraries**, **microservices**, **frameworks**, **tools**, and **sample applications** optimized for Intel CPUs, GPUs, and NPUs.
++- The companion repository **edge-ai-suites** provides industry-specific sample applications that depend on components from this repository.
++- License: Apache-2.0. Every source file must include an Apache-2.0 SPDX header.
++
++## Repository Structure
++
++```
++edge-ai-libraries/
++├── libraries/          # Core AI libraries (anomalib, dlstreamer, edge-control, robotics-ai, etc.)
++├── microservices/      # Deployable microservices (time-series-analytics, model-registry, audio-analyzer, etc.)
++├── frameworks/         # Edge device enablement framework
++├── tools/              # Evaluation and monitoring tools
++├── sample-applications/ # Sample apps (chat-qa, document-summarization, etc.)
++└── .github/            # CI/CD workflows, actions, templates
++```
++
++## General Coding Rules
++
++### Python
++
++- Target Python 3.11–3.13 depending on the component.
++- Use type hints for all new and modified function signatures.
++- Use `logging` module (never `print()` in production code).
++- Use `async`/`await` for FastAPI route handlers and async libraries.
++- Use Pydantic models for request/response validation where FastAPI is used.
++- Pin dependency versions in `requirements.txt` files.
++
++### Dockerfile
++
++- Use multi-stage builds to minimize image size.
++- Run as a non-root user (never `USER root` in the final stage).
++- Include a `HEALTHCHECK` instruction.
++- Drop all capabilities and set `no-new-privileges` in security contexts.
++- Follow existing Hadolint conventions; address DL and SC warnings.
++
++### Helm Charts
++
++- Use semantic versioning for `Chart.yaml` (e.g., `2026.1.0-helm`).
++- Enforce security contexts: `readOnlyRootFilesystem`, `runAsNonRoot`, `drop: [ALL]`.
++- Template all configurable values through `values.yaml`.
++
++### Shell Scripts
++
++- Write POSIX-compatible shell scripts where possible.
++- Pass ShellCheck validation (SC error codes).
++- Include proper error handling with `set -e` or equivalent.
++
++### YAML / Workflows
++
++- Pin GitHub Actions to full commit SHAs (not tags).
++- Follow the principle of least privilege for `permissions`.
++- Use `persist-credentials: false` on checkout actions.
++
++## Compliance Requirements
++
++- **License Header**: Every source file (`.py`, `.sh`, `.yaml`, `.yml`, `.js`, `.ts`, `.c`, `.cpp`, `.h`, `.hpp`) must have an Apache-2.0 SPDX license header.
++- **No Secrets**: Never commit passwords, tokens, API keys, or credentials. Use GitHub Secrets or environment variables.
++- **Third-Party Dependencies**: When adding new dependencies, declare them in the PR with name, version, and license. Ensure compatibility with Apache-2.0.
++- **Security Scans**: All code must pass CodeQL, Bandit (Python), Trivy (container), and Pylint checks that run in CI.
++
++## CI/CD Patterns
++
++- Workflows are path-filtered to only trigger on relevant component changes.
++- Reusable workflows (`workflow_call`) are used to compose CI pipelines.
++- Scans include: CodeQL (SAST), Bandit (Python security), Trivy (filesystem/image/config), Pylint, ShellCheck, Hadolint, ClamAV (virus), Docker Bench Security.
++- Unit tests use `pytest` with `pytest-cov` for coverage.
++- Functional tests run in Docker Compose and/or k3s (Kubernetes) environments.
++
++## PR Guidelines
++
++- Follow the PR template: description, dependency declaration, testing evidence, compliance checklist.
++- Keep changes focused—do not mix unrelated refactors.
++- Ensure existing unit tests and functional tests pass before submitting.
++- Review CODEOWNERS for the component you are modifying to understand required reviewers.
++
++## Validation Before Finishing
++
++- Run relevant unit tests (e.g., `./tests/run_tests.sh` for the component).
++- Run linters: `pylint` for Python, `shellcheck` for shell, `hadolint` for Dockerfiles.
++- For docs-only changes, verify documentation builds successfully.
++- Do not include unrelated refactors in the same PR.
+diff --git a/microservices/time-series-analytics/.github/copilot-instructions.md b/microservices/time-series-analytics/.github/copilot-instructions.md
+new file mode 100644
+index 00000000..b12bbe2f
+--- /dev/null
++++ b/microservices/time-series-analytics/.github/copilot-instructions.md
+@@ -0,0 +1,164 @@
++<!--
++SPDX-FileCopyrightText: (C) 2025 Intel Corporation
++SPDX-License-Identifier: Apache-2.0
++-->
++
++# Copilot Instructions — Time Series Analytics Microservice
++
++## Scope
++
++These instructions apply to `microservices/time-series-analytics/` and its sub-directories.
++
++## Project Context
++
++- **Time Series Analytics (TSA)** is a real-time data analytics microservice that processes time series data through custom Python User-Defined Functions (UDFs).
++- **Architecture**: FastAPI REST API → Kapacitor (stream processing) → Python UDFs → InfluxDB (storage). Optional OPC UA alert routing.
++- **Runtime**: Python 3.13 on Debian slim. Kapacitor 1.8.3 for stream processing.
++- **Deployment targets**: Docker Compose and Kubernetes (Helm).
++- **Companion app**: `edge-ai-suites` → `manufacturing-ai-suite/industrial-edge-insights-time-series` deploys this microservice with sample apps (wind-turbine-anomaly-detection, weld-defect-detection).
++
++## Directory Layout
++
++```
++time-series-analytics/
++├── src/                  # Python source (main.py, classifier_startup.py, opcua_alerts.py)
++├── tests/                # Unit tests (pytest + pytest-cov + pytest-asyncio)
++├── tests-functional/     # Docker-based integration tests
++├── simulator/            # Temperature data simulator for demos
++├── udfs/                 # Example UDFs (temperature_classifier.py)
++├── tick_scripts/         # Kapacitor TICK stream processing scripts
++├── docker/               # docker-compose.yml, run.sh entrypoint, .env, GPU drivers
++├── helm/                 # Kubernetes Helm chart (Chart.yaml, values.yaml, templates/)
++├── config/               # Kapacitor configs (production + devmode)
++├── docs/                 # User documentation
++├── scripts/              # Build/utility scripts (GPU driver install)
++├── Dockerfile            # Multi-stage Docker build
++├── requirements.txt      # Python dependencies (pinned versions)
++├── config.json           # Default UDF configuration
++└── schema.json           # JSON Schema for config validation
++```
++
++## Technology Stack
++
++| Component          | Technology                                                     |
++| ------------------ | -------------------------------------------------------------- |
++| Language           | Python 3.13                                                    |
++| REST API           | FastAPI 0.135.0 + Uvicorn 0.41.0                              |
++| Stream Processing  | Kapacitor 1.8.3 (InfluxData)                                  |
++| ML Acceleration    | scikit-learn 1.6.1 + scikit-learn-intelex 2025.11.0 (Intel)   |
++| Time Series DB     | InfluxDB client 5.3.2                                         |
++| OPC UA             | asyncua 1.1.8                                                 |
++| Serialization      | protobuf 7.34.0                                               |
++| GPU Support        | dpctl 0.21.1 (Intel GPU)                                      |
++| Container Base     | python:3.13-slim (Debian)                                     |
++| Orchestration      | Docker Compose, Helm (Kubernetes)                              |
++
++## Coding Rules
++
++### Python Source (`src/`)
++
++- Use type hints on all function signatures and Pydantic models for API contracts.
++- Use `async`/`await` for FastAPI handlers and OPC UA client calls.
++- Use the `logging` module (never `print()`); respect `KAPACITOR_LOGGING_LEVEL`.
++- Handle errors with `HTTPException` for API endpoints and `try/except` with logging elsewhere.
++- Use `threading.Event` for synchronization between startup and main threads.
++- Follow existing docstring style (reStructuredText or Google style).
++- Preserve Apache-2.0 SPDX license headers on all files.
++
++### UDFs (`udfs/`)
++
++- UDFs are Python scripts processed by the Kapacitor UDF agent framework.
++- Each UDF must implement the Kapacitor UDF handler interface (`Handler` class with `info`, `init`, `point`, `snapshot`, `restore`).
++- Place companion TICK scripts in `tick_scripts/` with matching names.
++
++### Tests (`tests/`)
++
++- Framework: `pytest` with `pytest-cov` and `pytest-asyncio`.
++- Run tests: `cd microservices/time-series-analytics && ./tests/run_tests.sh`
++- Alternatively: `PYTHONPATH=./src python3 -m pytest --cov=src tests`
++- Test files follow `test_*.py` naming; use descriptive test function names.
++- Mock external services (Kapacitor, InfluxDB, OPC UA) in unit tests.
++- Aim for coverage reported in HTML (`/tmp/htmlcov`).
++
++### Functional Tests (`tests-functional/`)
++
++- Run in Docker Compose and k3s (Kubernetes) environments.
++- Test files: `test_docker.py` (Docker compose), `test_helm.py` (Helm deployment).
++- Helper utilities in `rest_api_utils.py`.
++- Use `pytest-html` for test reports.
++
++### Docker / Dockerfile
++
++- Multi-stage build: builder stage for Kapacitor UDF agents, runtime stage for final image.
++- Non-root user: `timeseries_user` (UID 1999, GID 2999).
++- Healthcheck: Kapacitor ping endpoint.
++- Security: read-only root filesystem, dropped capabilities, SecComp, no privilege escalation.
++- Build args: `KAPACITOR_VERSION`, `PYTHON_VERSION`, `INSTALL_DRIVER_VERSION`, `COPYLEFT_SOURCES`.
++
++### Docker Compose (`docker/`)
++
++- Service: `ia-time-series-analytics-microservice`.
++- Ports: 5000 (REST API), 9092 (Kapacitor).
++- Environment variables configured in `docker/.env`.
++- GPU support: `/dev/dri` device mounting and render group IDs.
++
++### Helm Chart (`helm/`)
++
++- Chart version format: `2026.1.0-helm` (semantic versioning).
++- Deploy to `apps` namespace by default.
++- REST API NodePort: 30002 (external), 5000 (internal).
++- All security contexts must remain: `readOnlyRootFilesystem`, `runAsNonRoot`, `drop: [ALL]`.
++
++### Configuration
++
++- `config.json`: Specifies which UDF to load (default: `temperature_classifier`).
++- `schema.json`: JSON Schema that validates config updates via REST API.
++- `config/kapacitor.conf` and `config/kapacitor_devmode.conf`: Kapacitor daemon configs.
++
++## Key Environment Variables
++
++| Variable                              | Purpose                               | Default       |
++| ------------------------------------- | ------------------------------------- | ------------- |
++| `KAPACITOR_LOGGING_LEVEL`             | Logging level                         | INFO          |
++| `KAPACITOR_URL`                       | Kapacitor service URL                 | (internal)    |
++| `INFLUXDB_DBNAME`                     | InfluxDB database name                | datain        |
++| `REST_API_ROOT_PATH`                  | FastAPI root path                     | (empty)       |
++| `UDF_MAX_FILE_SIZE_MB`                | Max UDF tar upload size               | 100           |
++| `CORE_PINNING`                        | CPU core preference                   | (disabled)    |
++| `OPCUA_SECURE_MODE`                   | Enable OPC UA TLS                     | false         |
++| `MODEL_REGISTRY_URL`                  | Model registry endpoint               | (empty)       |
++
++## REST API Endpoints
++
++| Method | Path              | Description                            |
++| ------ | ----------------- | -------------------------------------- |
++| GET    | `/health`         | Kapacitor daemon health check          |
++| POST   | `/input`          | Ingest time series data points         |
++| GET    | `/config`         | Get current configuration              |
++| POST   | `/config`         | Update configuration (with validation) |
++| POST   | `/opcua_alerts`   | Send alerts to OPC UA server           |
++| POST   | `/upload_tar_file`| Upload UDF deployment package          |
++
++## CI/CD Workflows
++
++This microservice has five CI workflows in `.github/workflows/`:
++
++1. **`timeseries-build-pull-request.yml`**: Pre-merge pipeline (build → unit test → functional test → scans). Triggers on push to `main` and PRs affecting TSA paths.
++2. **`timeseries-unit-test.yaml`**: Runs `tests/run_tests.sh`, uploads coverage artifacts.
++3. **`timeseries-weekly-functional-tests.yaml`**: Weekly functional tests with Docker + k3s. Scheduled Fridays 14:00 UTC.
++4. **`timeseries-scans.yaml`**: Security scans (CodeQL, Bandit, Trivy FS/image/Dockerfile, Pylint, ClamAV virus, Docker Bench Security).
++5. **`timeseries-build-weekly-images.yaml`**: Weekly Docker image builds pushed to GHCR. Scheduled Tuesdays 14:00 UTC.
++
++Cross-repo workflows in `edge-ai-suites`:
++- `industrial-edge-insights-time-series-pull-request.yml`: Builds both TSA microservice and sample apps, deploys wind-turbine and weld-defect apps.
++- `industrial-edge-insights-time-series-scans.yml`: Trivy, Bandit, ClamAV, Docker Bench, CodeQL, Pylint scans for the sample app layer.
++- `industrial-edge-insights-time-series-tests.yml`: Daily functional tests for both time-series and multimodal apps.
++
++## Validation Before Finishing
++
++1. Run unit tests: `cd microservices/time-series-analytics && ./tests/run_tests.sh`
++2. Run pylint: `pylint src/*.py`
++3. Verify Dockerfile builds: `cd docker && docker compose build`
++4. For Helm changes, verify: `helm lint helm/`
++5. Ensure all new files have Apache-2.0 SPDX headers.
++6. Do not commit `.env` files with real credentials.
+-- 
+2.53.0
+
+
+From 9d71ccc98a84fc7bc9c411af344c5eaeb2e5b853 Mon Sep 17 00:00:00 2001
+From: "copilot-swe-agent[bot]" <198982749+Copilot@users.noreply.github.com>
+Date: Mon, 20 Apr 2026 12:16:14 +0000
+Subject: [PATCH 2/2] Remove global copilot-instructions.md; enhance TSA-level
+ instructions with compliance and PR guidelines
+
+Since this repository is contributed by many teams, the global
+.github/copilot-instructions.md is inappropriate. Removed it and
+folded the missing compliance requirements, PR guidelines, and
+CODEOWNERS reference into the TSA-specific copilot-instructions.md.
+
+Agent-Logs-Url: https://github.com/vkb1/edge-ai-libraries/sessions/a0912581-9916-4ae0-b1ea-a19d1368fbd1
+
+Co-authored-by: vkb1 <19564820+vkb1@users.noreply.github.com>
+---
+ .github/copilot-instructions.md               | 95 -------------------
+ .../.github/copilot-instructions.md           | 14 +++
+ 2 files changed, 14 insertions(+), 95 deletions(-)
+ delete mode 100644 .github/copilot-instructions.md
+
+diff --git a/.github/copilot-instructions.md b/.github/copilot-instructions.md
+deleted file mode 100644
+index 045fde73..00000000
+--- a/.github/copilot-instructions.md
++++ /dev/null
+@@ -1,95 +0,0 @@
+-<!--
+-SPDX-FileCopyrightText: (C) 2025 Intel Corporation
+-SPDX-License-Identifier: Apache-2.0
+--->
+-
+-# Copilot Instructions
+-
+-## Scope
+-
+-These instructions apply to the entire `edge-ai-libraries` repository.
+-
+-## Project Context
+-
+-- **Edge AI Libraries** is Intel's repository for building and deploying real-time AI solutions on edge devices.
+-- It contains **libraries**, **microservices**, **frameworks**, **tools**, and **sample applications** optimized for Intel CPUs, GPUs, and NPUs.
+-- The companion repository **edge-ai-suites** provides industry-specific sample applications that depend on components from this repository.
+-- License: Apache-2.0. Every source file must include an Apache-2.0 SPDX header.
+-
+-## Repository Structure
+-
+-```
+-edge-ai-libraries/
+-├── libraries/          # Core AI libraries (anomalib, dlstreamer, edge-control, robotics-ai, etc.)
+-├── microservices/      # Deployable microservices (time-series-analytics, model-registry, audio-analyzer, etc.)
+-├── frameworks/         # Edge device enablement framework
+-├── tools/              # Evaluation and monitoring tools
+-├── sample-applications/ # Sample apps (chat-qa, document-summarization, etc.)
+-└── .github/            # CI/CD workflows, actions, templates
+-```
+-
+-## General Coding Rules
+-
+-### Python
+-
+-- Target Python 3.11–3.13 depending on the component.
+-- Use type hints for all new and modified function signatures.
+-- Use `logging` module (never `print()` in production code).
+-- Use `async`/`await` for FastAPI route handlers and async libraries.
+-- Use Pydantic models for request/response validation where FastAPI is used.
+-- Pin dependency versions in `requirements.txt` files.
+-
+-### Dockerfile
+-
+-- Use multi-stage builds to minimize image size.
+-- Run as a non-root user (never `USER root` in the final stage).
+-- Include a `HEALTHCHECK` instruction.
+-- Drop all capabilities and set `no-new-privileges` in security contexts.
+-- Follow existing Hadolint conventions; address DL and SC warnings.
+-
+-### Helm Charts
+-
+-- Use semantic versioning for `Chart.yaml` (e.g., `2026.1.0-helm`).
+-- Enforce security contexts: `readOnlyRootFilesystem`, `runAsNonRoot`, `drop: [ALL]`.
+-- Template all configurable values through `values.yaml`.
+-
+-### Shell Scripts
+-
+-- Write POSIX-compatible shell scripts where possible.
+-- Pass ShellCheck validation (SC error codes).
+-- Include proper error handling with `set -e` or equivalent.
+-
+-### YAML / Workflows
+-
+-- Pin GitHub Actions to full commit SHAs (not tags).
+-- Follow the principle of least privilege for `permissions`.
+-- Use `persist-credentials: false` on checkout actions.
+-
+-## Compliance Requirements
+-
+-- **License Header**: Every source file (`.py`, `.sh`, `.yaml`, `.yml`, `.js`, `.ts`, `.c`, `.cpp`, `.h`, `.hpp`) must have an Apache-2.0 SPDX license header.
+-- **No Secrets**: Never commit passwords, tokens, API keys, or credentials. Use GitHub Secrets or environment variables.
+-- **Third-Party Dependencies**: When adding new dependencies, declare them in the PR with name, version, and license. Ensure compatibility with Apache-2.0.
+-- **Security Scans**: All code must pass CodeQL, Bandit (Python), Trivy (container), and Pylint checks that run in CI.
+-
+-## CI/CD Patterns
+-
+-- Workflows are path-filtered to only trigger on relevant component changes.
+-- Reusable workflows (`workflow_call`) are used to compose CI pipelines.
+-- Scans include: CodeQL (SAST), Bandit (Python security), Trivy (filesystem/image/config), Pylint, ShellCheck, Hadolint, ClamAV (virus), Docker Bench Security.
+-- Unit tests use `pytest` with `pytest-cov` for coverage.
+-- Functional tests run in Docker Compose and/or k3s (Kubernetes) environments.
+-
+-## PR Guidelines
+-
+-- Follow the PR template: description, dependency declaration, testing evidence, compliance checklist.
+-- Keep changes focused—do not mix unrelated refactors.
+-- Ensure existing unit tests and functional tests pass before submitting.
+-- Review CODEOWNERS for the component you are modifying to understand required reviewers.
+-
+-## Validation Before Finishing
+-
+-- Run relevant unit tests (e.g., `./tests/run_tests.sh` for the component).
+-- Run linters: `pylint` for Python, `shellcheck` for shell, `hadolint` for Dockerfiles.
+-- For docs-only changes, verify documentation builds successfully.
+-- Do not include unrelated refactors in the same PR.
+diff --git a/microservices/time-series-analytics/.github/copilot-instructions.md b/microservices/time-series-analytics/.github/copilot-instructions.md
+index b12bbe2f..9cff450f 100644
+--- a/microservices/time-series-analytics/.github/copilot-instructions.md
++++ b/microservices/time-series-analytics/.github/copilot-instructions.md
+@@ -154,6 +154,20 @@ Cross-repo workflows in `edge-ai-suites`:
+ - `industrial-edge-insights-time-series-scans.yml`: Trivy, Bandit, ClamAV, Docker Bench, CodeQL, Pylint scans for the sample app layer.
+ - `industrial-edge-insights-time-series-tests.yml`: Daily functional tests for both time-series and multimodal apps.
+ 
++## Compliance Requirements
++
++- **License Header**: Every source file (`.py`, `.sh`, `.yaml`, `.yml`) must include an Apache-2.0 SPDX license header.
++- **No Secrets**: Never commit passwords, tokens, API keys, or credentials. Use GitHub Secrets or environment variables.
++- **Third-Party Dependencies**: When adding new dependencies, declare them in the PR with name, version, and license. Ensure compatibility with Apache-2.0.
++- **Security Scans**: All code must pass CodeQL, Bandit (Python), Trivy (container/filesystem), Pylint, and ClamAV checks that run in CI.
++
++## PR Guidelines
++
++- Follow the PR template: description, dependency declaration, testing evidence, compliance checklist.
++- Keep changes focused—do not mix unrelated refactors.
++- Ensure existing unit tests and functional tests pass before submitting.
++- Review CODEOWNERS for required reviewers (`@vkb1 @sathyendranv @pooja-intel @SudarshanaPanda @rashmihe`).
++
+ ## Validation Before Finishing
+ 
+ 1. Run unit tests: `cd microservices/time-series-analytics && ./tests/run_tests.sh`
+-- 
+2.53.0
+
