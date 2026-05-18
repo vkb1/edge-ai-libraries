@@ -477,7 +477,7 @@ async def config_file_change(config_data: Config, background_tasks: BackgroundTa
                     "udfs": {
                         "name": "udf_name",
                         "model": "model_name",
-                        "device": "CPU or GPU"},
+                        "device": "CPU/cpu or GPU/gpu"},
                     "alerts": {
                     }
                     }
@@ -547,7 +547,7 @@ async def config_file_change(config_data: Config, background_tasks: BackgroundTa
                        (device_value.startswith("gpu:") and device_value.split(":")[1].isdigit()))
             
             if not is_valid:
-                error_msg = "Invalid value for 'device' in udfs: {}, must be 'CPU', 'GPU', or 'GPU:N' (e.g., 'GPU:0')".format(udfs["device"])
+                error_msg = "Invalid value for 'device' in udfs: {}, must be 'CPU/cpu', 'GPU/gpu', or 'GPU:N/gpu:N' (e.g., 'GPU:0')".format(udfs["device"])
                 logger.error(error_msg)
                 raise HTTPException(status_code=422, detail=error_msg)
 
