@@ -1,5 +1,5 @@
 ---
-name: model-download-agent
+name: model-download-user
 description: >
   Download and convert AI models using the Model Download microservice.
   Use this skill whenever a user wants to: download a model from HuggingFace,
