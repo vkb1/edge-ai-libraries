@@ -1,0 +1,33 @@
+{
+  "SPDX-FileCopyrightText": "(C) 2026 Intel Corporation",
+  "SPDX-License-Identifier": "Apache-2.0",
+  "schemaVersion": "1.0",
+  "description": "Harness-neutral discovery catalog for Time Series Analytics microservice skills. Paths are relative to the repository root.",
+  "skillsRoot": "microservices/time-series-analytics/.github/skills",
+  "skills": [
+    {
+      "name": "tsa-user",
+      "path": "microservices/time-series-analytics/.github/skills/tsa-user/SKILL.md",
+      "description": "Deploy and operate the Time Series Analytics microservice: bring up the service, upload a UDF deployment package, configure UDF and alerts (MQTT/OPC UA), ingest time-series data, and verify results.",
+      "triggers": [
+        "deploy time series analytics",
+        "run TSA",
+        "start time series service",
+        "upload UDF",
+        "configure kapacitor",
+        "send sensor data",
+        "anomaly detection",
+        "temperature classifier",
+        "MQTT alerts",
+        "OPC UA alerts",
+        "set up TSA",
+        "ingest data",
+        "time series analytics microservice"
+      ],
+      "requires": [
+        "docker compose",
+        "curl"
+      ]
+    }
+  ]
+}
