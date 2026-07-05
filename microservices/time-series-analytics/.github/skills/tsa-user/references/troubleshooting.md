@@ -113,10 +113,12 @@ $ cat /tmp/log/kapacitor/kapacitor.log | grep -i error
 
 **Symptom:** `POST /opcua_alerts` returns `{"detail": "OPC UA alerts are not configured in the service"}`.
 
-**Fix:** Add the `opcua` section to the config via `POST /config` and ensure the OPC UA server is running and reachable:
+**Fix:** Add the `opcua` section to the config via `POST /config` and ensure the OPC UA server is running and reachable on port 4840:
 ```bash
-docker exec -it ia-time-series-analytics-microservice bash
-$ curl opc.tcp://ia-opcua-server:4840/freeopcua/server/
+# Check if the OPC UA server port is open (OPC UA uses a binary protocol, not HTTP)
+nc -zv ia-opcua-server 4840
+# or from inside the container:
+docker exec -it ia-time-series-analytics-microservice bash -c "nc -zv ia-opcua-server 4840"
 ```
 
 ---
