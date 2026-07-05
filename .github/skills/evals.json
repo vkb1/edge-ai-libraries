@@ -1,0 +1,83 @@
+{
+  "version": "1.0",
+  "description": "Skill routing evaluation dataset for edge-ai-libraries repository skills. Used with the skill-creator skill for benchmarking skill trigger accuracy.",
+  "skills": [
+    {
+      "name": "security",
+      "description": "On-demand security review skill for Dockerfiles, Compose, Helm, auth/authz, input validation, dependency changes, and CVE-related work.",
+      "file": ".github/skills/security.md",
+      "trigger_prompts": [
+        "I updated the Dockerfile for the audio-analyzer microservice to use python:3.12-slim, please review it for security issues.",
+        "Our model-registry service has a new OAuth2 authentication endpoint. Can you review the code for security vulnerabilities?",
+        "I'm upgrading the Python dependencies in time-series-analytics, please check for CVEs in the lockfile.",
+        "Review my Helm chart for the dlstreamer-pipeline-server service security context settings.",
+        "I'm adding input validation to the VLM serving REST API endpoint, please review for injection risks.",
+        "Check if there are any privilege escalation risks in the docker-compose.yml for the semantic-search-agent.",
+        "We're adding token-based auth to the document-ingestion service, can you do a security review?",
+        "The multimodal-embedding-serving Dockerfile now runs as root. Is that a security problem?",
+        "I need a security review of the new file upload handler in the visual-data-preparation microservice.",
+        "Bump the base image in our Dockerfile and review the resulting change for security issues.",
+        "Review the new deserialization logic added to the vector-retriever service.",
+        "Can you check the CI workflow for the model-download service for any supply chain security risks?"
+      ],
+      "non_trigger_prompts": [
+        "Generate a changelog for the time-series-analytics microservice comparing release-2026.0 and release-2026.1.",
+        "Add a new REST endpoint to the model-registry for listing model versions.",
+        "How do I run the unit tests for the audio-analyzer component?",
+        "Write a Python function to parse OpenVINO model output in the vlm-openvino-serving service.",
+        "Update the README for the vector-retriever microservice with deployment instructions.",
+        "Create release notes for the dlstreamer-pipeline-server 2026.2 release.",
+        "What changed between v1.0.0 and main in the semantic-search-agent?"
+      ]
+    },
+    {
+      "name": "generate-changelog",
+      "description": "Generates or updates CHANGELOG.md by analyzing git commit history between two branches, tags, or revisions.",
+      "file": ".github/skills/generate-changelog/generate-changelog.md",
+      "trigger_prompts": [
+        "Generate a changelog for the time-series-analytics microservice comparing release-2026.0 and release-2026.1.",
+        "Update CHANGELOG.md for the audio-analyzer folder using commits since v1.0.0.",
+        "What changed between v1.0.0 and main in the model-registry microservice?",
+        "Create a changelog comparing the release-2026.1 and release-2026.2 branches for the dlstreamer-pipeline-server.",
+        "Generate changelog entries for microservices/vlm-openvino-serving between main and develop.",
+        "Draft release notes from git history for the document-ingestion service between tags 2026.0.0 and 2026.1.0.",
+        "Update my CHANGELOG.md with all commits in the semantic-search-agent folder since the last release.",
+        "Compare branches release-2026.0 and release-2026.1 and show what changed in the model-download service.",
+        "Generate a CHANGELOG.md for the vector-retriever component from v2.0 to v2.1."
+      ],
+      "non_trigger_prompts": [
+        "Review my Dockerfile for the audio-analyzer for security vulnerabilities.",
+        "Add a new Python endpoint to the model-registry REST API.",
+        "Write unit tests for the time-series-analytics anomaly detection module.",
+        "Write release notes summarizing highlights of the dlstreamer-pipeline-server 2026.2 release for the GitHub release page.",
+        "How do I deploy the semantic-search-agent using Helm?",
+        "Fix the failing CI pipeline for the multimodal-embedding-serving workflow.",
+        "Create a new microservice for real-time video transcoding."
+      ]
+    },
+    {
+      "name": "generate-release-notes",
+      "description": "Generates human-readable, narrative release notes for a directory or component version, suited for GitHub Releases or announcements.",
+      "file": ".github/skills/generate-release-notes/generate-release-notes.md",
+      "trigger_prompts": [
+        "Write release notes for the vlm-openvino-serving microservice version 2026.2.0 for the GitHub Release page.",
+        "Generate release notes for the model-registry 2026.1 release to share with stakeholders.",
+        "Draft a release announcement for the audio-analyzer 2026.2 release highlighting new features.",
+        "Create human-readable release notes for the time-series-analytics service version 2026.1.0.",
+        "I need release notes for the dlstreamer-pipeline-server 2026.2 release to post on the GitHub Release.",
+        "Write a release summary for the document-ingestion microservice for our changelog blog post.",
+        "Generate a formatted release note document for the semantic-search-agent version 2026.1.",
+        "Create release notes for the multimodal-embedding-serving component version 2026.2.0."
+      ],
+      "non_trigger_prompts": [
+        "Generate a CHANGELOG.md for time-series-analytics comparing release-2026.0 and release-2026.1.",
+        "Review the Helm chart for the model-registry for security best practices.",
+        "Add a new API endpoint to the vlm-openvino-serving service.",
+        "Update CHANGELOG.md with commits from main since v1.0.0 in the audio-analyzer folder.",
+        "Fix the broken unit tests in the vector-retriever module.",
+        "How do I build the dlstreamer-pipeline-server Docker image locally?",
+        "What changed between the release-2026.0 and release-2026.1 branches in the document-ingestion service?"
+      ]
+    }
+  ]
+}
