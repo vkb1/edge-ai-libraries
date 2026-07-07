@@ -23,7 +23,7 @@ Consult these based on the code you're working with. Skills reside under `.githu
 
 | Skill file | When to load |
 |---|---|
-| `.github/skills/security.md` | Dockerfile, Compose, Helm, auth/authz, input parsing, dependency changes, CVE-related work |
+| `.github/skills/security-review/SKILL.md` | Dockerfile, Compose, Helm, auth/authz, input parsing, file handling, secrets/logging, dependency upgrades, CI/CD workflow changes, privilege elevation |
 
 > **Instruction Placement Policy**: Keep this file focused on high-level routing and architecture context. Detailed procedural checklists belong in skill files under `.github/skills/`. Avoid duplicating checklist content between this file and skills.
 
@@ -52,7 +52,7 @@ Treat AI-generated output as **untrusted draft code** until reviewed and tested.
 Reject suggestions that bypass security controls for convenience or introduce unsafe defaults.
 
 For detailed security review guidance, follow:
-`.github/skills/security.md`.
+`.github/skills/security-review/SKILL.md`.
 
 ## Repository Structure
 
@@ -181,7 +181,7 @@ yamllint .
 - **`<component>/tests/`**: Unit and integration tests
 - **`<component>/docs/`**: Component user guide and API documentation
 - **`.github/workflows/`**: Per-component CI pipeline definitions
-- **`.github/skills/security.md`**: On-demand security review skill
+- **`.github/skills/security-review/SKILL.md`**: On-demand security review skill (code, containers, Helm/K8s; not for runtime or cluster controls)
 
 ## Documentation Requirements (Always-On)
 
