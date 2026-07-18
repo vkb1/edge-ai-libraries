@@ -29,8 +29,8 @@
       "dependsOn": [
         {
           "skill": "vss-build",
-          "relationship": "prerequisite",
-          "condition": "when deploying images built from source; omit if using pre-built registry images"
+          "relationship": "optional",
+          "condition": "only when deploying images built from source (custom patches or development); skip for standard Docker Hub deploys where setup.sh pulls intel/<service>:latest automatically"
         }
       ]
     },

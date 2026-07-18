@@ -30,6 +30,29 @@ URLs. Always **run the commands yourself** and relay output.
 
 If the user is ambiguous, ask which mode; do **not** default silently.
 
+## Image Source
+
+**Always try pre-built Docker Hub images first.** `setup.sh` pulls images from
+the registry configured in `vss.config.env` (`REGISTRY_URL=intel`, `TAG=latest`
+by default), so a plain deploy requires no build step.
+
+| Scenario | Action |
+|---|---|
+| First deploy / standard use | Use this skill directly — `setup.sh` pulls `intel/<service>:latest` from Docker Hub automatically via `docker compose up -d`. |
+| Images already pulled / offline | Same — `docker compose up -d` uses the locally cached layers. |
+| Need a specific tag or private registry | Edit `REGISTRY_URL` and `TAG` in `vss.config.env` before deploying. |
+| Source changes / custom patches | Use [`vss-build`](../vss-build/SKILL.md) **first** to build local images, then deploy here. |
+
+Before deploying, confirm the registry images are accessible (skip if offline or
+using local images from a prior build):
+
+```bash
+docker pull intel/pipeline-manager:latest 2>&1 | tail -1
+```
+
+If the pull fails with an auth or not-found error, either fix registry access or
+use `vss-build` to build the images locally before proceeding.
+
 ## Workflow
 
 1. **Pick the mode** from the table and open its reference for the exact env vars.
@@ -145,7 +168,7 @@ which has a symptom → fix section for each.
 
 | Skill | Relationship | When to use |
 |---|---|---|
-| [`vss-build`](../vss-build/SKILL.md) | prerequisite | Use first when images must be built from source; skip if pulling pre-built registry images. |
+| [`vss-build`](../vss-build/SKILL.md) | optional | Use only when deploying images built from source (custom patches, development). Skip for standard Docker Hub deploys. |
 | [`vss-doctor`](../vss-doctor/SKILL.md) | follow-up | Use after deploy to verify health, identify the running mode, or debug a failing stack. |
 | [`vss-summarize`](../vss-summarize/SKILL.md) | follow-up | Use once a summary-capable deployment (`--summary`, `--dual`, `--unified`) is healthy. |
 | [`vss-search`](../vss-search/SKILL.md) | follow-up | Use once a search-capable deployment (`--search`, `--dual`, `--unified`) is healthy. |
