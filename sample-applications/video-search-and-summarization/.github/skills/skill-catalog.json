@@ -93,7 +93,7 @@
         {
           "skill": "vss-up",
           "relationship": "prerequisite",
-          "condition": "always — a summary-capable VSS deployment must be running before any summarization API call"
+          "condition": "always - a summary-capable VSS deployment must be running before any summarization API call"
         }
       ]
     },
@@ -117,7 +117,7 @@
         {
           "skill": "vss-up",
           "relationship": "prerequisite",
-          "condition": "always — a search-capable VSS deployment must be running before any search API call"
+          "condition": "always - a search-capable VSS deployment must be running before any search API call"
         }
       ]
     }

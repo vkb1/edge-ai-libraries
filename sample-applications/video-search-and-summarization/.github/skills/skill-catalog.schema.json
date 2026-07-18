@@ -4,7 +4,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "skill-catalog.schema.json",
   "title": "VSS Skill Catalog Schema",
-  "description": "Schema for skill-catalog.json — the cross-harness discovery catalog for VSS skills. Tooling (e.g. `npx skills add`) reads this file to locate skills, resolve install-time dependencies, and match user intent to the correct skill.",
+  "description": "Schema for skill-catalog.json - the cross-harness discovery catalog for VSS skills. Tooling (e.g. npx skills add) reads this file to locate skills, resolve install-time dependencies, and match user intent to the correct skill.",
   "type": "object",
   "required": ["schemaVersion", "skillsRoot", "skills"],
   "properties": {
@@ -81,7 +81,7 @@
         },
         "relationship": {
           "type": "string",
-          "description": "How the referenced skill relates to this one:\n- `prerequisite`: the referenced skill must have completed successfully before this skill can run.\n- `follow-up`: the referenced skill is the natural next step after this skill completes.\n- `optional`: the referenced skill provides additional value but is not required.",
+          "description": "How the referenced skill relates to this one. prerequisite: must complete before this skill runs. follow-up: natural next step after this skill. optional: provides additional value but not required.",
           "enum": ["prerequisite", "follow-up", "optional"]
         },
         "condition": {
