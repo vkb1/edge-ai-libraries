@@ -130,3 +130,11 @@ and apply its fix — don't improvise. High-value mappings:
 
 Summarize as: **reachable?** → **mode/features** → **any unhealthy services** →
 **recommended next step** (often a specific `vss-up` invocation).
+
+## Related Skills
+
+| Skill | Relationship | When to use |
+|---|---|---|
+| [`vss-up`](../vss-up/SKILL.md) | follow-up | Use to deploy or redeploy the stack when health checks show nothing is running or the wrong mode is active. |
+| [`vss-summarize`](../vss-summarize/SKILL.md) | optional | Use once `summary==FEATURE_ON` is confirmed to run or inspect the summarization pipeline. |
+| [`vss-search`](../vss-search/SKILL.md) | optional | Use once `search==FEATURE_ON` is confirmed to upload, index, and query videos. |

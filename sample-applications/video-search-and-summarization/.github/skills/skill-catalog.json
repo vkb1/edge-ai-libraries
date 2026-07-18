@@ -1,7 +1,8 @@
 {
   "SPDX-FileCopyrightText": "(C) 2026 Intel Corporation",
   "SPDX-License-Identifier": "Apache-2.0",
-  "schemaVersion": "1.0",
+  "$schema": "./skill-catalog.schema.json",
+  "schemaVersion": "1.1",
   "description": "Harness-neutral discovery catalog for Video Search and Summarization workflow skills. Paths are relative to the repository root.",
   "skillsRoot": ".github/skills",
   "skills": [
@@ -24,6 +25,13 @@
         "setup.sh",
         ".github/skills/vss-up/vss.config.env",
         ".github/skills/vss-up/scripts/gen-secrets.sh"
+      ],
+      "dependsOn": [
+        {
+          "skill": "vss-build",
+          "relationship": "prerequisite",
+          "condition": "when deploying images built from source; omit if using pre-built registry images"
+        }
       ]
     },
     {
@@ -41,6 +49,13 @@
       "requires": [
         "curl",
         "docker compose"
+      ],
+      "dependsOn": [
+        {
+          "skill": "vss-up",
+          "relationship": "follow-up",
+          "condition": "when the diagnosis shows nothing is deployed or the wrong mode is active"
+        }
       ]
     },
     {
@@ -57,7 +72,8 @@
       "requires": [
         "build.sh",
         "docker"
-      ]
+      ],
+      "dependsOn": []
     },
     {
       "name": "vss-summarize",
@@ -72,6 +88,13 @@
       "requires": [
         "healthy Pipeline Manager",
         "summary-capable deployment"
+      ],
+      "dependsOn": [
+        {
+          "skill": "vss-up",
+          "relationship": "prerequisite",
+          "condition": "always — a summary-capable VSS deployment must be running before any summarization API call"
+        }
       ]
     },
     {
@@ -89,6 +112,13 @@
       "requires": [
         "healthy Pipeline Manager",
         "search-capable deployment"
+      ],
+      "dependsOn": [
+        {
+          "skill": "vss-up",
+          "relationship": "prerequisite",
+          "condition": "always — a search-capable VSS deployment must be running before any search API call"
+        }
       ]
     }
   ]

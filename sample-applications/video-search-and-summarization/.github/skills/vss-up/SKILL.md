@@ -140,3 +140,12 @@ NPU/OpenGL issues — hand off to the [`vss-doctor`](../vss-doctor/SKILL.md) ski
 and the canonical guide
 [`docs/user-guide/troubleshooting.md`](../../../docs/user-guide/troubleshooting.md),
 which has a symptom → fix section for each.
+
+## Related Skills
+
+| Skill | Relationship | When to use |
+|---|---|---|
+| [`vss-build`](../vss-build/SKILL.md) | prerequisite | Use first when images must be built from source; skip if pulling pre-built registry images. |
+| [`vss-doctor`](../vss-doctor/SKILL.md) | follow-up | Use after deploy to verify health, identify the running mode, or debug a failing stack. |
+| [`vss-summarize`](../vss-summarize/SKILL.md) | follow-up | Use once a summary-capable deployment (`--summary`, `--dual`, `--unified`) is healthy. |
+| [`vss-search`](../vss-search/SKILL.md) | follow-up | Use once a search-capable deployment (`--search`, `--dual`, `--unified`) is healthy. |

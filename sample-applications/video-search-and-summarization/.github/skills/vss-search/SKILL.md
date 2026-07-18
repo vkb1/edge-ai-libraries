@@ -106,3 +106,10 @@ curl -s -X PATCH "$HOST/manager/search/<QUERY_ID>/watch" \
 curl -s "$HOST/manager/search/watched" | jq .
 curl -s -X DELETE "$HOST/manager/search/<QUERY_ID>"
 ```
+
+## Related Skills
+
+| Skill | Relationship | When to use |
+|---|---|---|
+| [`vss-up`](../vss-up/SKILL.md) | prerequisite | Use first to deploy a search-capable stack (`--search`, `--dual`, or `--unified`) if none is running. |
+| [`vss-doctor`](../vss-doctor/SKILL.md) | optional | Use to diagnose health, confirm `search==FEATURE_ON`, or debug a failing embedding or data-prep service. |

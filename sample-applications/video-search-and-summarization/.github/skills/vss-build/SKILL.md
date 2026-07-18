@@ -79,3 +79,9 @@ export REGISTRY_URL=intel TAG=dev
 ```bash
 docker images | grep -E 'pipeline-manager|search|video-ingestion|vss|embedding|dataprep'
 ```
+
+## Related Skills
+
+| Skill | Relationship | When to use |
+|---|---|---|
+| [`vss-up`](../vss-up/SKILL.md) | follow-up | Use after a successful build to deploy the freshly built images with `setup.sh`. |

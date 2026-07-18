@@ -1,0 +1,95 @@
+{
+  "SPDX-FileCopyrightText": "(C) 2026 Intel Corporation",
+  "SPDX-License-Identifier": "Apache-2.0",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "skill-catalog.schema.json",
+  "title": "VSS Skill Catalog Schema",
+  "description": "Schema for skill-catalog.json — the cross-harness discovery catalog for VSS skills. Tooling (e.g. `npx skills add`) reads this file to locate skills, resolve install-time dependencies, and match user intent to the correct skill.",
+  "type": "object",
+  "required": ["schemaVersion", "skillsRoot", "skills"],
+  "properties": {
+    "SPDX-FileCopyrightText": { "type": "string" },
+    "SPDX-License-Identifier": { "type": "string" },
+    "schemaVersion": {
+      "type": "string",
+      "description": "Catalog schema version (semver). Increment when adding new required top-level fields."
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of this catalog."
+    },
+    "skillsRoot": {
+      "type": "string",
+      "description": "Path to the skills directory, relative to the repository root."
+    },
+    "skills": {
+      "type": "array",
+      "description": "Ordered list of skill entries. Each entry is the authoritative machine-readable record for one skill.",
+      "items": {
+        "$ref": "#/definitions/SkillEntry"
+      }
+    }
+  },
+  "definitions": {
+    "SkillEntry": {
+      "type": "object",
+      "required": ["name", "path", "description", "triggers", "requires"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Unique skill identifier. Used as the install key: `npx skills add <name>`.",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "path": {
+          "type": "string",
+          "description": "Path to SKILL.md relative to the repository root."
+        },
+        "description": {
+          "type": "string",
+          "description": "One-sentence description for catalog listings and agent routing."
+        },
+        "triggers": {
+          "type": "array",
+          "description": "Natural-language phrases that should route an agent to this skill. Used by harnesses and agent routers for intent matching.",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "requires": {
+          "type": "array",
+          "description": "Runtime prerequisites — system tools, files, or services that must exist before the skill's commands can execute. These are NOT other skills; they are environment-level dependencies (e.g. 'docker compose', 'curl', 'setup.sh').",
+          "items": { "type": "string" }
+        },
+        "dependsOn": {
+          "type": "array",
+          "description": "Install-time skill dependencies. When a harness installs this skill (e.g. `npx skills add vss-up`), it SHOULD also install each listed skill. Each entry describes the relationship and an optional condition so the harness or agent can decide whether the dependency is relevant for the user's specific scenario.",
+          "items": {
+            "$ref": "#/definitions/SkillDependency"
+          },
+          "default": []
+        }
+      },
+      "additionalProperties": false
+    },
+    "SkillDependency": {
+      "type": "object",
+      "required": ["skill", "relationship"],
+      "properties": {
+        "skill": {
+          "type": "string",
+          "description": "Name of the required skill (must match a `name` in this catalog).",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "relationship": {
+          "type": "string",
+          "description": "How the referenced skill relates to this one:\n- `prerequisite`: the referenced skill must have completed successfully before this skill can run.\n- `follow-up`: the referenced skill is the natural next step after this skill completes.\n- `optional`: the referenced skill provides additional value but is not required.",
+          "enum": ["prerequisite", "follow-up", "optional"]
+        },
+        "condition": {
+          "type": "string",
+          "description": "Human-readable explanation of when this dependency applies. Agents should surface this text when prompting the user to install or invoke the dependency."
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

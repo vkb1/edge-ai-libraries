@@ -109,3 +109,10 @@ no speech yields an `audioTranscriptSummary` that says so — not an error.
 curl -s "$HOST/manager/summary" | jq '.[] | {stateId, title}'   # list all
 curl -s -X DELETE "$HOST/manager/summary/$STATE_ID"             # delete one
 ```
+
+## Related Skills
+
+| Skill | Relationship | When to use |
+|---|---|---|
+| [`vss-up`](../vss-up/SKILL.md) | prerequisite | Use first to deploy a summary-capable stack (`--summary`, `--dual`, or `--unified`) if none is running. |
+| [`vss-doctor`](../vss-doctor/SKILL.md) | optional | Use to diagnose health, confirm `summary==FEATURE_ON`, or debug a failing pipeline. |
