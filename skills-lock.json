@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "skills": {
+    "vss-up": {
+      "source": "vkb1/edge-ai-libraries",
+      "ref": "main",
+      "sourceType": "github",
+      "skillPath": "sample-applications/video-search-and-summarization/.github/skills/vss-up/SKILL.md",
+      "computedHash": "e9cb92c25280ff9db2bab7f00365e1e3e72fb23ce9fbe2f44331bcd79a058534"
+    }
+  }
+}
