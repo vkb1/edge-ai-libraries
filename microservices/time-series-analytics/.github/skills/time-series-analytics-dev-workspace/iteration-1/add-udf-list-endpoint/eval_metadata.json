@@ -1,0 +1,13 @@
+{
+  "eval_id": 4,
+  "eval_name": "add-udf-list-endpoint",
+  "prompt": "In the Time Series Analytics microservice (microservices/time-series-analytics), add a new GET /udfs endpoint that lists the UDF deployment packages currently extracted under /tmp/, so operators can see what's deployed without shelling into the container. Return each package's name and whether its udfs/, tick_scripts/, and models/ subfolders are present. Add unit test coverage for the new route.\n\nValidate using the existing unit test suite (it should still pass, including your new test), and a manual check after bringing the service up with Docker Compose: curl -s http://localhost:5000/udfs should return the currently-deployed package(s).",
+  "assertions": [
+    "A new GET /udfs route exists in src/main.py",
+    "The route's response includes each deployed package's name and the presence/absence of its udfs/, tick_scripts/, and models/ subfolders",
+    "A new test covering the /udfs route was added to tests/test_main.py",
+    "The full unit test suite passes, including the new test, with no existing test broken",
+    "After building and running the container from the modified source, curl to /udfs returns a real response reflecting actual deployed packages, not a stub or hardcoded response",
+    "New/modified files follow the file's existing SPDX header convention"
+  ]
+}

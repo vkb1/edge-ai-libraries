@@ -1,0 +1,49 @@
+{
+  "skill_name": "time-series-analytics-user",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Build a UDF that flags hydraulic pressure readings outside a safe operating band, using the Time Series Analytics microservice at microservices/time-series-analytics. Field `pressure_bar` arrives via POST /input; flag any reading below 80 or above 150. Name the UDF `pressure_guard`. Deploy it against a running instance of the service and confirm flagged points show up in the container logs.\n\nValidate using the prebuilt intel/ia-time-series-analytics-microservice image via Docker Compose, and these sample input points: {\"topic\": \"point_data\", \"fields\": {\"pressure_bar\": 65}} (should flag) and {\"topic\": \"point_data\", \"fields\": {\"pressure_bar\": 110}} (should not flag).",
+      "expected_output": "A pressure_guard UDF + tick script + tar package, deployed and actively flagging the 65 bar point while not flagging the 110 bar point.",
+      "files": [],
+      "expectations": [
+        "A UDF file named pressure_guard.py exists implementing threshold detection logic",
+        "A tick script named pressure_guard.tick exists and its UDF node invokes @pressure_guard()",
+        "The deployment package was successfully uploaded via POST /udfs/package (not just written locally)",
+        "Config was successfully applied naming udfs.name as pressure_guard via POST /config",
+        "Sending pressure_bar=65 produces a flagged/logged anomaly in the container logs",
+        "Sending pressure_bar=110 does NOT produce a flagged anomaly in the container logs",
+        "The UDF reads the pressure_bar field specifically, not a different or generic field name"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Build a UDF that detects sudden vibration spikes on a motor and publishes an MQTT alert when one occurs, using the Time Series Analytics microservice at microservices/time-series-analytics. Field `vibration_mm_s` arrives via POST /input; flag a point if it jumps more than 5 mm/s from the previous reading. Wire the flagged output to an MQTT alert assuming the broker is named `motor_alerts_broker`. Name the UDF `vibration_spike_detector`.\n\nValidate using the prebuilt intel/ia-time-series-analytics-microservice image via Docker Compose, with MQTT alerting configured. Send this sequence to POST /input: vibration_mm_s = 2.0, then 2.1, then 9.5 (the jump from 2.1 to 9.5 should flag), then 9.6 (should not flag -- small delta from the now-elevated baseline).",
+      "expected_output": "A vibration_spike_detector UDF that tracks the previous reading across calls, only flags the 2.1 -> 9.5 jump, and a tick script wired to Kapacitor's native MQTT alert node for broker `motor_alerts_broker`.",
+      "files": [],
+      "expectations": [
+        "A UDF file named vibration_spike_detector.py exists that tracks a previous value across point() calls as instance state",
+        "A tick script named vibration_spike_detector.tick exists that references the vibration_spike_detector UDF node",
+        "The tick script includes an alert node configured for MQTT broker motor_alerts_broker (not just a bare UDF node)",
+        "The deployment package was successfully uploaded and config applied via the REST API",
+        "Sending the sequence 2.0, 2.1, 9.5 results in the 9.5 point being flagged (delta from 2.1 exceeds 5 mm/s)",
+        "Sending 9.6 immediately after 9.5 does NOT get flagged (small delta from the now-elevated baseline)",
+        "The rate-of-change threshold used is 5 mm/s as specified, not an arbitrary different value"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Deploy a pretrained anomaly-detection model for wind turbine sensor data through the Time Series Analytics microservice at microservices/time-series-analytics. A scikit-learn model (windturbine_anomaly_detector.pkl, an IsolationForest trained on a single numeric field) is provided as an input file -- wire it up for per-point inference rather than writing new detection logic. Name the UDF `windturbine_anomaly_detector`; the model file should be referenced in the deployment config, device set to CPU.\n\nValidate using the prebuilt intel/ia-time-series-analytics-microservice image via Docker Compose. Send a normal-range reading (e.g. field value 50) and an extreme outlier (e.g. field value 200) via POST /input and confirm only the outlier is flagged.",
+      "expected_output": "A windturbine_anomaly_detector UDF that loads the provided model once and calls .predict() per point, correctly distinguishing the normal reading from the outlier.",
+      "files": ["evals/files/windturbine_anomaly_detector.pkl"],
+      "expectations": [
+        "A UDF file named windturbine_anomaly_detector.py exists that loads the provided .pkl model once in __init__ (or equivalent), not per-point",
+        "The deployment package includes the PROVIDED windturbine_anomaly_detector.pkl file, not a newly trained model",
+        "The config applied via POST /config references the model file under udfs.models and sets udfs.device to CPU",
+        "Sending a normal-range reading (value near 50) does not get flagged",
+        "Sending an outlier reading (value 200) gets flagged",
+        "The UDF calls model.predict() and treats -1 as the anomaly convention consistent with IsolationForest"
+      ]
+    }
+  ]
+}

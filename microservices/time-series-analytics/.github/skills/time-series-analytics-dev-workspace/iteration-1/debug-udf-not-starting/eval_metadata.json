@@ -1,0 +1,12 @@
+{
+  "eval_id": 5,
+  "eval_name": "debug-udf-not-starting",
+  "prompt": "In the Time Series Analytics microservice (microservices/time-series-analytics): a UDF deployment package was uploaded and POST /config returned 200, but the container logs show no sign of the task running, and data sent to POST /input isn't producing any flagged output. Figure out why and fix it.\n\nFirst reproduce the problem yourself: deploy a UDF package where the tick script's measurement name doesn't match the topic used in POST /input (a deliberately introduced mismatch), and confirm POST /input produces no visible effect. Then diagnose and fix or clearly explain the root cause, and confirm the fix works (points now reach the UDF and get flagged as expected).",
+  "assertions": [
+    "The agent successfully reproduced the bug (measurement/topic mismatch) and confirmed POST /input had no visible effect before attempting a fix",
+    "The agent correctly diagnosed the root cause as a measurement-name/topic mismatch, not a fabricated or incorrect diagnosis",
+    "The diagnosis is backed by specific cited evidence (log lines, file/config comparison), not just an assertion of the cause",
+    "The agent verified the fix by re-testing and confirming points now reach the UDF and get flagged as expected",
+    "The agent did not misdiagnose this as requiring a source code bug fix in main.py/classifier_startup.py, since the root cause is a config/tick-script authoring mistake, not a service defect"
+  ]
+}

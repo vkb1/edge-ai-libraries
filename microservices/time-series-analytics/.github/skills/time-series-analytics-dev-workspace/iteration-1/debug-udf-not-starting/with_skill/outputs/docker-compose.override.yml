@@ -1,0 +1,5 @@
+services:
+  ia-time-series-analytics-microservice:
+    container_name: ia-tsa-5w
+    ports:
+      - "5109:5000"
