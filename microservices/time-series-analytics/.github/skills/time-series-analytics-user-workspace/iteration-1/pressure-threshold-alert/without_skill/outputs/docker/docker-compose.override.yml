@@ -1,5 +1,0 @@
-services:
-  ia-time-series-analytics-microservice:
-    container_name: ia-tsa-1b
-    ports: !override
-      - "5102:5000"
