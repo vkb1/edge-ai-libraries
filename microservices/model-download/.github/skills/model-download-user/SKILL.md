@@ -15,6 +15,11 @@ metadata:
     and convert to OpenVINO INT4 for CPU with OVMS")
 ---
 
+<!--
+SPDX-FileCopyrightText: (C) 2026 Intel Corporation
+SPDX-License-Identifier: Apache-2.0
+-->
+
 # Model Download Agent
 
 Set up the Model Download microservice and walk the user through downloading
