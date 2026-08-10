@@ -6,7 +6,6 @@ It is a powerful, flexible solution for real-time analysis of time series data. 
 ---
 > **Note**: The tags suffixed with `-weekly` and `-rcX` are developmental builds that may not be stable.
 
-
 ### [2026.2.0](https://docs.openedgeplatform.intel.com/2026.2/edge-ai-libraries/time-series-analytics/release-notes.html#version-2026-2)
 
 #### Deploy using Docker Compose
