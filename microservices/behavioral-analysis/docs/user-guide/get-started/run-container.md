@@ -1,5 +1,7 @@
 # Run with Docker Compose
 
+Docker Compose starts the behavioral-analysis service. External dependencies (SeaweedFS, MQTT broker, and OVMS) must be reachable from the compose network.
+
 ## Prerequisites
 
 - Docker Engine 24.0+
@@ -10,25 +12,7 @@
 
 See [System Requirements](system-requirements.md) for details.
 
----
-
-## Pull the Image
-
-Set the image tag in `.env.local` (for `RELEASE_TAG`) and pull the image before startup:
-
-```bash
-docker compose --env-file .env.local pull behavioral-analysis
-```
-
-If you prefer to build your own image (for customization, reproducibility, compliance, or local development workflows), follow [build-from-source.md](./build-from-source.md) and then return here to run with Docker Compose.
-
----
-
-## Run with Docker Compose
-
-Docker Compose starts the behavioral-analysis service. External dependencies (SeaweedFS, MQTT broker, and OVMS) must be reachable from the compose network.
-
-### 1. Configure the environment
+### 1. Configure the Environment
 
 ```bash
 cp .env .env.local
@@ -38,38 +22,46 @@ cp .env .env.local
 Configuration is mandatory for successful startup and analysis.
 See [Configuration](configuration.md) for all required environment variables and pattern settings.
 
-### 2. Start the stack
+### 2. Pull the Image
+
+Set the image tag in `.env.local` (for `RELEASE_TAG`) and pull the image before startup:
+
+```bash
+docker compose --env-file .env.local pull behavioral-analysis
+```
+
+If you prefer to build your own image (for customization, reproducibility, compliance, or local development workflows), follow
+[build-from-source.md](./build-from-source.md) and then return here to run with Docker Compose.
+
+### 3. Start the Stack
 
 ```bash
 docker compose --env-file .env.local up -d --no-build
 ```
 
-### 3. View logs
+### 4. View Logs
 
 ```bash
 docker compose logs behavioral-analysis -f
 ```
 
-### 4. Stop the stack
+### 5. Stop the Stack
 
 ```bash
 docker compose down
 ```
 
----
-
 ## Network Configuration
 
 The service uses a Docker network defined in `docker-compose.yml` (currently `ba-network`).
 
-If SeaweedFS, MQTT broker, or OVMS are running in other containers, update the compose network configuration so all services are on a shared reachable network.
+If SeaweedFS, the MQTT broker, or OVMS are running in other containers, update the Docker Compose network configuration so all services are on a shared, reachable network.
 
 The service must be able to resolve and reach:
+
 - `seaweedfs` (or the value of `SEAWEEDFS_ENDPOINT`)
 - The MQTT broker hostname
 - `ovms-vlm` (or the value of `VLM_ENDPOINT`)
-
----
 
 ## Health Check
 
@@ -96,15 +88,11 @@ Or call the endpoint directly:
 curl http://localhost:8085/health
 ```
 
----
-
 ## Container Logs
 
 ```bash
 docker compose logs behavioral-analysis -f
 ```
-
----
 
 ## Shutdown
 
@@ -112,9 +100,8 @@ docker compose logs behavioral-analysis -f
 docker compose down
 ```
 
-The service handles `SIGTERM` gracefully: the MQTT consumer awaits in-flight analyses before stopping, and the VLM HTTP client is closed cleanly.
-
----
+The service handles `SIGTERM` gracefully: the MQTT consumer awaits in-flight
+analyses before stopping, and the VLM HTTP client is closed cleanly.
 
 ## Troubleshooting
 

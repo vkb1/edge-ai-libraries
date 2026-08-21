@@ -24,6 +24,23 @@ IDENTITY_LOCK_MIN_DURATION_SEC = float(getattr(_identity_cfg, "lock_min_duration
 IDENTITY_SESSION_TTL_SECONDS = float(getattr(_identity_cfg, "session_ttl_seconds", 1800.0))
 
 
+def _is_diarization_auth_error(exc: Exception) -> bool:
+    text = str(exc).lower()
+    markers = (
+        "401",
+        "403",
+        "unauthorized",
+        "forbidden",
+        "invalid token",
+        "token",
+        "huggingface",
+        "gated",
+        "access",
+        "permission",
+    )
+    return any(marker in text for marker in markers)
+
+
 class ASRComponent(PipelineComponent):
 
     _model = None
@@ -64,9 +81,14 @@ class ASRComponent(PipelineComponent):
 
         raise ValueError(f"Unsupported ASR provider/model: {normalized_provider}/{normalized_model_name}")
 
-    def __init__(self, session_id, provider="openai", model_name="whisper-small", device="CPU", temperature=0.0):
+    def __init__(self, session_id, provider="openai", model_name="whisper-small", device="CPU", temperature=0.0, speaker_scope_id=None):
 
         self.session_id = session_id
+        # Scope key for speaker enrollment. Stays stable for a whole
+        # conversation, whereas session_id is regenerated for every utterance —
+        # enrolling per utterance would re-derive the reference voice from the
+        # very audio being judged.
+        self.speaker_scope_id = speaker_scope_id or session_id
         self.temperature = temperature
         self.provider = provider
         self.model_name = model_name
@@ -86,10 +108,11 @@ class ASRComponent(PipelineComponent):
             try:
                 from components.asr.diarization.pyannote_diarizer import PyannoteDiarizer
                 from utils.ensure_model import _resolve_hf_token
+                from utils.openvino_runtime_validation import resolve_diarization_torch_device
 
-                diar_device = str(
-                    getattr(getattr(config.models, "diarization", None), "device", "cpu")
-                ).lower()
+                _diar_cfg_local = getattr(config.models, "diarization", None)
+                _config_diar_device = str(getattr(_diar_cfg_local, "device", "CPU") if _diar_cfg_local else "CPU")
+                diar_device = resolve_diarization_torch_device(_config_diar_device)
 
                 # Reuse a single shared diarizer across all requests so the
                 # pyannote pipeline (weights + embedding model) is loaded once
@@ -100,13 +123,29 @@ class ASRComponent(PipelineComponent):
                     ASRComponent._pyannote_diarizer is None
                     or ASRComponent._pyannote_diarizer_key != diarizer_key
                 ):
-                    ASRComponent._pyannote_diarizer = PyannoteDiarizer(
-                        device=diar_device,
-                        hf_token=_resolve_hf_token(),
-                    )
+                    hf_token = _resolve_hf_token()
+                    if diar_device.upper() in ("GPU", "NPU"):
+                        # OpenVINO-backed diarization: segmentation model runs on
+                        # the requested OV device; embedding + clustering on CPU.
+                        from components.asr.diarization.ov_pyannote_diarizer import (
+                            OVBackedPyannoteDiarizer,
+                        )
+                        from utils.ensure_model import get_diarization_model_path
+
+                        ASRComponent._pyannote_diarizer = OVBackedPyannoteDiarizer(
+                            ov_device=diar_device.upper(),
+                            hf_token=hf_token,
+                            model_dir=get_diarization_model_path(),
+                        )
+                    else:
+                        # CPU path: existing PyannoteDiarizer (PyTorch CPU).
+                        ASRComponent._pyannote_diarizer = PyannoteDiarizer(
+                            device="cpu",
+                            hf_token=hf_token,
+                        )
                     ASRComponent._pyannote_diarizer_key = diarizer_key
                     logger.info(
-                        "[DIARIZATION] PyannoteDiarizer loaded on device=%s",
+                        "[DIARIZATION] Diarizer loaded on device=%s",
                         diar_device,
                     )
                 self.pyannote_diarizer = ASRComponent._pyannote_diarizer
@@ -120,16 +159,22 @@ class ASRComponent(PipelineComponent):
                         session_ttl_seconds=IDENTITY_SESSION_TTL_SECONDS,
                     )
             except Exception as exc:
-                logger.warning(
-                    "[DIARIZATION] ⚠️  Failed to load PyannoteDiarizer — diarization disabled for this session. "
-                    "Cause: %s. "
-                    "If this is a 403 error, accept the model at "
-                    "https://huggingface.co/pyannote/speaker-diarization-community-1 "
-                    "then restart the container.",
-                    exc,
-                )
-                self.enable_diarization = False
-                self.pyannote_diarizer = None
+                # models.asr.diarization=true — never silently disable diarization.
+                # Any failure here is fatal; the service must not start with
+                # diarization requested but non-functional.
+                if _is_diarization_auth_error(exc):
+                    raise RuntimeError(
+                        "Speaker diarization initialization failed due to HF token/access error. "
+                        "Startup aborted: models.asr.diarization=true requires valid credentials. "
+                        "If this is a 403 error, accept the model at "
+                        "https://huggingface.co/pyannote/speaker-diarization-community-1 "
+                        "and restart the container."
+                    ) from exc
+                raise RuntimeError(
+                    "Speaker diarization initialization failed. "
+                    "Startup aborted: models.asr.diarization=true requires successful diarization "
+                    f"initialization. Cause: {exc}"
+                ) from exc
 
     def process(self, input_generator, language: str | None = None):
 
@@ -169,27 +214,30 @@ class ASRComponent(PipelineComponent):
 
                     speaker_turns: list[dict] = []
                     label_embeddings: dict = {}
-                    per_segment_labels: list[dict] = []
                     primary_map: dict[str, bool] = {}
+                    source_segments: list[dict] = transcription["segments"]
 
                     if use_per_segment_enrollment:
-                        whisper_time_segments = [
-                            {"start": float(s.get("start", 0.0)), "end": float(s.get("end", 0.0))}
-                            for s in transcription["segments"]
-                        ]
-                        per_segment_labels = self.pyannote_diarizer.label_whisper_segments(
+                        labelled_segments = self.pyannote_diarizer.split_and_label_segments(
                             chunk_path,
-                            whisper_time_segments,
-                            session_id=self.session_id,
+                            transcription["segments"],
+                            session_id=self.speaker_scope_id,
                         )
+                        # Sub-segments rebuilt from word timings bypassed the
+                        # provider's repetition filter — re-apply it.
+                        for seg in labelled_segments:
+                            if seg.get("text_rebuilt"):
+                                seg["text"] = self.asr.clean_text(seg.get("text", ""))
+                        source_segments = labelled_segments
                         logger.info(
-                            "[DIARIZATION] session=%s chunk=%s | per-segment enrollment produced %d label(s): %s",
+                            "[DIARIZATION] session=%s scope=%s chunk=%s | acoustic split produced %d labelled segment(s): %s",
                             self.session_id,
+                            self.speaker_scope_id,
                             os.path.basename(chunk_path),
-                            len(per_segment_labels),
+                            len(labelled_segments),
                             ", ".join(
                                 f"{lbl.get('speaker','?')}[{lbl.get('start',0):.2f}s-{lbl.get('end',0):.2f}s]"
-                                for lbl in per_segment_labels
+                                for lbl in labelled_segments
                             ) or "none",
                         )
                     else:
@@ -218,20 +266,22 @@ class ASRComponent(PipelineComponent):
                         len(transcription["segments"]),
                     )
 
-                    for idx, sent in enumerate(transcription["segments"]):
+                    for idx, sent in enumerate(source_segments):
                         text = sent["text"].strip()
                         if not text:
                             continue
 
-                        if use_per_segment_enrollment and idx < len(per_segment_labels):
-                            speaker = per_segment_labels[idx].get("speaker")
+                        if use_per_segment_enrollment:
+                            speaker = sent.get("speaker")
                             # In the enrollment model SPEAKER_00 is always the enrolled primary
                             is_primary = (speaker == "SPEAKER_00")
-                            logger.debug(
-                                "[DIARIZATION] segment [%.2fs-%.2fs] per-segment-> speaker=%s is_primary=%s",
+                            logger.info(
+                                "[DIARIZATION] segment [%.2fs-%.2fs] acoustic-split -> speaker=%s is_primary=%s (%s) | text=%r",
                                 sent["start"], sent["end"],
                                 speaker if speaker else "UNKNOWN",
                                 is_primary,
+                                "PRIMARY - picked" if is_primary else "SECONDARY - will be dropped downstream",
+                                text[:80],
                             )
                         else:
                             # Assign the speaker turn with the greatest time overlap
