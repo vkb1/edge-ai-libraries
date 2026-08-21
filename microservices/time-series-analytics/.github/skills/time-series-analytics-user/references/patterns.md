@@ -17,7 +17,8 @@ file) with the user before generating code; don't guess numeric thresholds.
 | [Threshold / range check](#threshold--range-check) | flag values outside a fixed `[low, high]` band | No |
 | [Rate-of-change / spike](#rate-of-change--spike-detection) | flag sudden jumps between consecutive readings | No |
 | [Rolling-window statistics](#rolling-window-statistics-z-score) | flag statistical outliers relative to recent history | No (optional) |
-| [Pretrained model inference](#pretrained-model-inference) | run a trained scikit-learn classifier/regressor/anomaly detector per point | Yes |
+| [Pretrained model inference](#pretrained-model-inference) | run a trained scikit-learn model per incoming point | Yes |
+| [Batch windowed inference](#batch-windowed-inference) | run a model (or custom logic) over a collected time window of points | Yes (optional) |
 
 If none of these fit (e.g. multi-field correlation, sequence modeling,
 custom windowing logic), fall back to
@@ -143,3 +144,63 @@ assume.
 To run inference on Intel iGPU instead of CPU, set `config.json`'s
 `udfs.device` to `"GPU"` (or `"GPU:N"` for a specific device) — the
 resolved value arrives as the `DEVICE` env var.
+
+## Batch Windowed Inference
+
+Use this pattern when the model (or logic) needs a *window* of consecutive
+points rather than a single point — e.g., a multi-sample feature vector, a
+temporal aggregation, or bulk inference for throughput. The TICKscript uses
+`|window()` to collect points into fixed time windows before forwarding
+them to the UDF as a batch.
+
+**Key differences from the stream patterns above:**
+
+- `info()` must declare `wants = udf_pb2.BATCH` (not `STREAM`).
+- Implement `begin_batch(begin_req)`, `point(point)`, and
+  `end_batch(end_req)` instead of only `point()`.
+- Accumulate incoming points in `point()` and run inference in
+  `end_batch()`. Write responses there too — the agent must emit a `begin`
+  response first, then the result points, then an `end` response.
+
+```python
+def info(self):
+    response = udf_pb2.Response()
+    response.info.wants = udf_pb2.BATCH
+    response.info.provides = udf_pb2.STREAM
+    return response
+
+def __init__(self, agent):
+    self._agent = agent
+    self._batch_points = []
+    self._begin_response = None
+    self.model = joblib.load(MODEL_PATH) if MODEL_PATH else None
+
+def begin_batch(self, begin_req):
+    self._batch_points = []
+    # Capture begin to re-emit before result points.
+    self._begin_response = udf_pb2.Response()
+    self._begin_response.begin.CopyFrom(begin_req)
+
+def point(self, point):
+    self._batch_points.append(point)
+
+def end_batch(self, end_req):
+    if self._begin_response is not None:
+        self._agent.write_response(self._begin_response)
+    for point in self._batch_points:
+        value = point.fieldsDouble.get("value")
+        if value is not None and self.model is not None:
+            pred = self.model.predict([[value]])[0]
+            point.fieldsDouble["anomaly_status"] = float(pred == -1)
+        response = udf_pb2.Response()
+        response.point.CopyFrom(point)
+        self._agent.write_response(response)
+    self._batch_points = []
+    end_response = udf_pb2.Response()
+    end_response.end.CopyFrom(end_req)
+    self._agent.write_response(end_response)
+```
+
+The tick script pairs with this via `|window()`. See
+[`tickscript-basics.md#batch-windowed-udfs`](tickscript-basics.md#batch-windowed-udfs)
+for the matching TICKscript.

@@ -24,7 +24,7 @@ across the repo:
 
 | File | Field |
 |---|---|
-| `docker/.env` | `IMAGE_SUFFIX` (e.g. `"2026.1.0"`), `WEEKLY_BUILD_DATE` for dated dev builds |
+| `docker/.env` | `IMAGE_SUFFIX` (e.g. `"2026.2.0"`), `WEEKLY_BUILD_DATE` for dated dev builds |
 | `helm/values.yaml` | `images.image_suffix`, `images.weekly_build_date` |
 | `README-dockerhub.md` | New version section with Docker Compose + Helm deployment doc links (see existing entries for the exact format) |
 | `CHANGELOG.md` | New `## [YYYY.M]` heading |

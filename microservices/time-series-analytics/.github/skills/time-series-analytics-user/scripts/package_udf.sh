@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-#
-# Apache v2 license
-# Copyright (C) 2026 Intel Corporation
+# SPDX-FileCopyrightText: (C) 2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 # Package (and locally validate) a UDF deployment package for the Time

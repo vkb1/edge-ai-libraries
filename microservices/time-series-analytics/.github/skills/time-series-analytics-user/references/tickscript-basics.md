@@ -49,6 +49,35 @@ data0
     @temperature_classifier()
 ```
 
+## Batch windowed UDFs
+
+When the UDF needs a window of points rather than individual points (e.g.
+bulk model inference over a fixed time period), add a `|window()` node
+between `|from()` and the UDF call. The UDF must declare
+`info.wants = udf_pb2.BATCH` — see
+[`udf-authoring.md#batch-udfs`](udf-authoring.md#batch-udfs).
+
+```
+dbrp "datain"."autogen"
+var data0 = stream
+        |from()
+                .measurement('point_data')
+                .groupBy('source')       // optional: process each source tag separately
+        |window()
+                .period(5m)              // collect 5 minutes of points
+                .every(5m)              // emit a new batch every 5 minutes
+data0
+    @my_batch_udf()
+```
+
+- `.period(Nd/Nh/Nm/Ns)` sets the window size; `.every()` sets the slide
+  interval. Equal values give non-overlapping tumbling windows; a shorter
+  `.every()` gives overlapping sliding windows.
+- `.groupBy(...)` causes Kapacitor to deliver separate batches per tag
+  value — useful when multiple sensors share a measurement name.
+- The resulting output is a stream of result points that downstream nodes
+  (e.g. `|influxDBOut()` or `|alert()`) can consume normally.
+
 ## Alerting: two different mechanisms, don't conflate them
 
 This microservice supports two separate alert paths, wired very

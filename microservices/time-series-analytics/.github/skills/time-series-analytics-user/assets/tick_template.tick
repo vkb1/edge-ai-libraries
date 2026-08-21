@@ -1,8 +1,6 @@
-//
-// Apache v2 license
-// Copyright (C) 2026 Intel Corporation
+// SPDX-FileCopyrightText: (C) 2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
-
+//
 // Rename to tick_scripts/<udf_name>.tick. <udf_name> must match udfs.name in
 // config.json and the .py file under udfs/ -- see ../references/tickscript-basics.md.
 

@@ -19,7 +19,8 @@ in Python, optionally accelerated with the Intel® Extension for
 Scikit-learn*. It ingests JSON data points, converts them to InfluxDB line
 protocol, and streams them through a Kapacitor TICKscript pipeline that runs
 the configured UDF (e.g. anomaly detection), with optional OPC UA alerting.
-A prebuilt image is published as
+UDFs can process points individually (stream mode) or in time windows via a
+`|window()` TICKscript node (batch mode). A prebuilt image is published as
 `intel/ia-time-series-analytics-microservice` on Docker Hub. Deeper user
 docs live under [`docs/user-guide/`](../docs/user-guide/); this file is the
 agent-facing map.
@@ -92,7 +93,7 @@ acceleration, Docker Compose / Helm for deployment.
   (at least one `.py`) and `tick_scripts/` folder (at least one `.tick`);
   `models/` is optional. Allowed member extensions are a fixed allowlist
   (`.py .tick .txt .cb .pkl .json .joblib .xml .bin .onnx .pt .pth`).
-- Probe `GET http://localhost:5000/health` before any API workflow.
+- `GET /health` reports Kapacitor daemon health (it may be 503 until after a successful `POST /config` starts Kapacitor on a fresh volume). Use it to confirm processing readiness; `POST /udfs/package` and `POST /config` can still be used while `/health` is 503.
 - Destructive operations (`docker compose down -v`, deleting the tmpfs
   volume) need explicit user confirmation.
 
@@ -139,3 +140,7 @@ GitHub and uses the prebuilt image.
   files land in `/tmp/<SAMPLE_APP>/`; otherwise `/tmp/<tar_filename>/`.
 - `KAPACITOR_LOGGING_LEVEL` controls both the FastAPI app's and Kapacitor's
   log verbosity.
+- A batch UDF (`info.wants = BATCH`) paired with a `|window()` TICKscript
+  node will silently receive no data if the tick script omits `|window()`;
+  conversely, a stream UDF (`info.wants = STREAM`) paired with `|window()`
+  will cause Kapacitor to error on task enable.

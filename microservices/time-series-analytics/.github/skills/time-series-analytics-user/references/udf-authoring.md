@@ -22,11 +22,11 @@ from kapacitor.udf import udf_pb2
 
 | Method | Called when | What to return |
 |---|---|---|
-| `info()` | once, at startup | `response.info.wants = udf_pb2.STREAM` and `.provides = udf_pb2.STREAM` — this microservice's REST ingestion (`POST /input`) always produces a point stream, so stream-in/stream-out is the right choice for nearly every use case here |
+| `info()` | once, at startup | `response.info.wants` and `.provides` — use `udf_pb2.STREAM`/`STREAM` for per-point processing; use `udf_pb2.BATCH`/`STREAM` when the TICKscript uses `\|window()` to group points into batches |
 | `init(init_req)` | once, when the task is enabled | `response.init.success = True`, or `False` + `.init.error = "..."` to abort task startup |
 | `point(point)` | once per incoming point | nothing required; call `self._agent.write_response(...)` to emit a point downstream (see below) |
 | `snapshot()` / `restore(restore_req)` | around daemon restarts | most deployments return an empty snapshot and an unimplemented restore, since `config.json` is reapplied fresh on every container restart anyway |
-| `begin_batch(begin_req)` / `end_batch(end_req)` | only for BATCH tasks | leave raising `Exception("not supported")` unless you specifically switched `info()` to BATCH |
+| `begin_batch(begin_req)` / `end_batch(end_req)` | when `info.wants = BATCH` — called to open/close each time window | see [Batch UDFs](#batch-udfs) below |
 
 ## Reading a point's fields
 
@@ -136,3 +136,49 @@ mismatch fails silently at the wiring level (the task enables, but points
 never reach your code) or loudly at `POST /config` time ("UDF deployment
 package validation failed for `<name>`"). [`package_udf.sh`](../scripts/package_udf.sh)
 checks this for you before upload.
+
+## Batch UDFs
+
+When the TICKscript uses a `|window()` node before the UDF call, Kapacitor
+collects a window of points and delivers them as a batch: first a
+`begin_batch` call, then one `point` call per point in the window, then
+`end_batch`. To use this mode:
+
+1. Declare `info.wants = udf_pb2.BATCH` (and typically `provides = udf_pb2.STREAM`).
+2. Accumulate points in `point()` and run logic/inference in `end_batch()`.
+3. Re-emit the `begin` response before your result points, then emit an
+   `end` response — Kapacitor expects that framing:
+
+```python
+def info(self):
+    response = udf_pb2.Response()
+    response.info.wants = udf_pb2.BATCH
+    response.info.provides = udf_pb2.STREAM
+    return response
+
+def begin_batch(self, begin_req):
+    self._batch_points = []
+    self._begin_response = udf_pb2.Response()
+    self._begin_response.begin.CopyFrom(begin_req)
+
+def point(self, point):
+    self._batch_points.append(point)
+
+def end_batch(self, end_req):
+    if self._begin_response is not None:
+        self._agent.write_response(self._begin_response)
+    for point in self._batch_points:
+        # ... run inference, set result fields ...
+        response = udf_pb2.Response()
+        response.point.CopyFrom(point)
+        self._agent.write_response(response)
+    self._batch_points = []
+    end_response = udf_pb2.Response()
+    end_response.end.CopyFrom(end_req)
+    self._agent.write_response(end_response)
+```
+
+See [`patterns.md#batch-windowed-inference`](patterns.md#batch-windowed-inference)
+for a complete example and
+[`tickscript-basics.md#batch-windowed-udfs`](tickscript-basics.md#batch-windowed-udfs)
+for the matching TICKscript.

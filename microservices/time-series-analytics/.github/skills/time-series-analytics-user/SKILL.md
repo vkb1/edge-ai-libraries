@@ -7,13 +7,14 @@ description: >
   exists) using the prebuilt intel/ia-time-series-analytics-microservice
   image, then author a UDF (Python) + TICKscript pair for the use case
   (threshold alerting, rate-of-change/spike detection, rolling-window
-  anomaly detection, or pretrained-model inference), package it as a tar,
-  deploy it via the REST API, and feed it data. Use when the user describes
-  a sensor/metric monitoring or anomaly-detection scenario, wants to plug
+  anomaly detection, pretrained-model inference per point, or batch
+  windowed inference over a time window), package it as a tar, deploy it
+  via the REST API, and feed it data. Use when the user describes a
+  sensor/metric monitoring or anomaly-detection scenario, wants to plug
   their own analytics logic or a trained scikit-learn model into a
-  streaming pipeline, or asks to wire up MQTT/OPC UA alerting on top of
-  this service. Not for modifying the microservice's own source code —
-  that is time-series-analytics-dev.
+  streaming or windowed-batch pipeline, or asks to wire up MQTT/OPC UA
+  alerting on top of this service. Not for modifying the microservice's
+  own source code — that is time-series-analytics-dev.
 ---
 
 # Time Series Analytics — User
@@ -27,7 +28,8 @@ commands yourself** and relay output. The service listens on host port
 
 - Turn a monitoring/anomaly-detection description into a working UDF +
   TICKscript pair and deploy it
-- Plug a pretrained scikit-learn model into the streaming pipeline
+- Plug a pretrained scikit-learn model into the streaming pipeline (per-point)
+  or batch windowed pipeline (`|window()` + `begin_batch`/`end_batch`)
 - Wire up MQTT (native TICKscript alert node) or OPC UA (REST endpoint)
   alerting on flagged points
 - Debug why a deployed UDF isn't receiving data or a package upload fails
@@ -81,7 +83,14 @@ Sample problem-solving scenarios this skill handles end-to-end:
   else in this workflow needs a GPU unless you specifically set
   `udfs.device: GPU` in a UDF's config.
 
-Wait for health before touching anything else:
+Wait for the REST API to be reachable (note: `/health` reflects Kapacitor, and may stay 503 on a fresh volume until after the first `POST /config`):
+
+```bash
+until curl -sf http://localhost:5000/docs > /dev/null; do sleep 5; done
+```
+
+After you `POST /config`, wait for Kapacitor health:
+
 ```bash
 until curl -sf http://localhost:5000/health; do sleep 5; done
 ```
