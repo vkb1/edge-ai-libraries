@@ -1,0 +1,51 @@
+{
+  "skill_name": "time-series-analytics-user",
+  "notes": "These benchmark prompts are self-contained. The runner does not start the microservice, so expectations grade produced artifacts (UDF, tick script, config.json, package) and their correctness rather than live container output.",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "pressure-guard-artifact",
+      "prompt": "Build a UDF that flags hydraulic pressure readings outside a safe operating band, using the Time Series Analytics microservice at microservices/time-series-analytics. Field `pressure_bar` arrives via POST /input; flag any reading below 80 or above 150. Name the UDF `pressure_guard`.\n\nProduce the UDF file, tick script, config.json, and a deployment package (tar or zip). Do not start Docker or POST any data — show me the artifacts and the Docker Compose command I would use to deploy them.",
+      "expected_output": "A pressure_guard UDF, tick script, config.json, and deployment package with correct threshold logic and the deploy command, without claiming a live deployment ran.",
+      "files": [],
+      "expectations": [
+        "A UDF file named pressure_guard.py exists implementing threshold detection logic",
+        "A tick script named pressure_guard.tick exists and its UDF node invokes @pressure_guard()",
+        "The UDF reads the pressure_bar field specifically, not a different or generic field name",
+        "The UDF logic correctly flags values < 80 or > 150 (the threshold band is [80, 150])",
+        "A tar or zip deployment package is created containing both the UDF and tick script",
+        "A config.json or equivalent exists specifying udfs.name as pressure_guard"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "vibration-spike-detector-artifact",
+      "prompt": "Build a UDF that detects sudden vibration spikes on a motor and publishes an MQTT alert when one occurs, using the Time Series Analytics microservice at microservices/time-series-analytics. Field `vibration_mm_s` arrives via POST /input; flag a point if it jumps more than 5 mm/s from the previous reading. Wire the flagged output to Kapacitor's native MQTT alert node in the tick script, using broker name `motor_alerts_broker` (matching the name field set in config.json's alerts.mqtt section). Name the UDF `vibration_spike_detector`.\n\nProduce the UDF file, tick script, config.json, and a deployment package. Do not start Docker or send any data — show me the artifacts and the deploy command. Explain which input sequence would flag (e.g. 2.1 → 9.5) and which would not (e.g. 9.5 → 9.6).",
+      "expected_output": "A vibration_spike_detector UDF with stateful rate-of-change logic, a tick script wired to the MQTT alert node, config.json with the correct broker name, and a deployment package — without claiming a live run.",
+      "files": [],
+      "expectations": [
+        "A UDF file named vibration_spike_detector.py exists that tracks a previous value across point() calls as instance state",
+        "A tick script named vibration_spike_detector.tick exists that references the vibration_spike_detector UDF node",
+        "The tick script chains a Kapacitor |alert() node off the UDF output with a .mqtt('<topic>') call for the MQTT topic and a separate .brokerName('motor_alerts_broker') call, where 'motor_alerts_broker' matches config.json's alerts.mqtt.name (note: .mqtt() takes a topic string, not the broker name — the broker is selected via .brokerName())",
+        "The UDF implements rate-of-change detection: flags if abs(current - previous) > 5.0 mm/s",
+        "The rate-of-change threshold used is exactly 5 mm/s as specified",
+        "The vibration_mm_s field is read correctly (not a generic or different field name)",
+        "A config.json or equivalent specifies udfs.name as vibration_spike_detector and includes an alerts.mqtt section with a name field set to motor_alerts_broker"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "windturbine-isolation-forest-artifact",
+      "prompt": "Deploy a pretrained anomaly-detection model for wind turbine sensor data through the Time Series Analytics microservice at microservices/time-series-analytics. A scikit-learn IsolationForest model (windturbine_anomaly_detector.pkl) is provided as an input file — copy it into the deployment package's models/ directory exactly as-is, do NOT retrain or replace it. Name the UDF `windturbine_anomaly_detector`; set udfs.models to `windturbine_anomaly_detector.pkl` and udfs.device to `CPU` in config.json.\n\nIsolationForest.predict() returns -1 for anomalies and 1 for normal points. The UDF must check `prediction == -1` to detect anomalies — do NOT compute residuals or apply a custom numeric threshold on the model output.\n\nProduce the UDF file, tick script, config.json, and a deployment package. Do not start Docker or POST any data — show me the artifacts and explain which input values would be flagged as anomalies.",
+      "expected_output": "A windturbine_anomaly_detector UDF that loads the provided model once and calls .predict() per point, treating -1 as the anomaly flag, plus the correct config.json and deployment package — without claiming a live run.",
+      "files": ["evals/files/windturbine_anomaly_detector.pkl"],
+      "expectations": [
+        "A UDF file named windturbine_anomaly_detector.py exists that loads the provided .pkl model once in __init__ (or equivalent), not per-point",
+        "The deployment package's models/ directory contains the PROVIDED windturbine_anomaly_detector.pkl file (copied from the input, not retrained or replaced with a different file)",
+        "The config.json uses the top-level udfs key with udfs.models set to windturbine_anomaly_detector.pkl and udfs.device set to CPU (not a nested model_config or other non-standard structure)",
+        "The UDF calls model.predict() and checks if the result equals -1 to flag an anomaly (IsolationForest convention) — it does NOT compute residuals or compare against a numeric threshold",
+        "The UDF logic correctly: (1) loads the model once at initialization, (2) calls model.predict() per point, (3) interprets -1 as anomaly"
+      ]
+    }
+  ]
+}

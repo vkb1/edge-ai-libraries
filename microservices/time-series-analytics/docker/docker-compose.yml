@@ -38,7 +38,7 @@ services:
       PROFILING_MODE: "false"
       KAPACITOR_URL: http://ia-time-series-analytics-microservice:$KAPACITOR_PORT/
       KAPACITOR_UNSAFE_SSL: "true"
-      KAPACITOR_INFLUXDB_0_URLS_0: ""
+      KAPACITOR_INFLUXDB_0_URLS_0: "http://127.0.0.1:8086"
       INFLUXDB_PORT: 
       KAPACITOR_LOGGING_LEVEL: ${LOG_LEVEL}
       INFLUXDB_DBNAME: datain
