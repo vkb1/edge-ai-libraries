@@ -1,1 +1,5 @@
-{"udfs": {"name": "pressure_guard"}}
+{
+    "udfs": {
+        "name": "temperature_classifier"
+    }
+}
