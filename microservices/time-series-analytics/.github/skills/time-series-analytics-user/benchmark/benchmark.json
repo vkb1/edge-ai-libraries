@@ -1,7 +1,7 @@
 {
   "metadata": {
     "skill_name": "time-series-analytics-user",
-    "skill_path": "/home/ecgd-ts-n1-l3r6/vinod/repos/skills/.agents/skills/time-series-analytics-user",
+    "skill_path": "microservices/time-series-analytics/.github/skills/time-series-analytics-user",
     "executor_model": "claude-sonnet-5",
     "analyzer_model": "<model-name>",
     "timestamp": "2026-08-25T13:28:58Z",

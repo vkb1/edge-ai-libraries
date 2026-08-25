@@ -100,7 +100,7 @@ acceleration, Docker Compose / Helm for deployment.
 ## Skills
 
 Reusable workflow skills live under [`.github/skills/`](skills/). Use
-[`skill-catalog.json`](skills/skill-catalog.json) to pick the relevant skill,
+[`skills-catalog.json`](skills/skills-catalog.json) to pick the relevant skill,
 then read that skill's `SKILL.md`.
 
 | User intent | Skill |
