@@ -5,18 +5,18 @@ SPDX-License-Identifier: Apache-2.0
 
 # Deploying a UDF: Package Format & Troubleshooting
 
-The canonical, maintained walkthrough for the deploy curl sequence and the
-full REST API already lives in this microservice's own docs — read those
-rather than duplicating them here:
+The canonical, maintained walkthrough for the deploy sequence and the
+full REST API already lives in this microservice's own docs (official Intel
+GitHub repository) — read those rather than duplicating them here:
 
-- [Get Started](https://github.com/open-edge-platform/edge-ai-libraries/blob/main/microservices/time-series-analytics/docs/user-guide/get-started.md) —
+- [Get Started](https://github.com/open-edge-platform/edge-ai-libraries/blob/release-2026.2.0/microservices/time-series-analytics/docs/user-guide/get-started.md) —
   the exact `docker compose up` -> package -> upload -> `POST /config` ->
   `POST /input` -> verify sequence, worked end-to-end with the built-in
   `temperature_classifier` sample.
-- [Configure Microservice](https://github.com/open-edge-platform/edge-ai-libraries/blob/main/microservices/time-series-analytics/docs/user-guide/how-to-configure.md) —
+- [Configure Microservice](https://github.com/open-edge-platform/edge-ai-libraries/blob/release-2026.2.0/microservices/time-series-analytics/docs/user-guide/how-to-configure.md) —
   the full `config.json` shape (`udfs.name`/`.models`/`.device`,
   `alerts.mqtt`, `alerts.opcua`), field by field.
-- [Access Microservice API](https://github.com/open-edge-platform/edge-ai-libraries/blob/main/microservices/time-series-analytics/docs/user-guide/how-to-access-api.md) —
+- [Access Microservice API](https://github.com/open-edge-platform/edge-ai-libraries/blob/release-2026.2.0/microservices/time-series-analytics/docs/user-guide/how-to-access-api.md) —
   every REST route with a request/response example, including
   `POST /opcua_alerts`.
 
@@ -36,16 +36,6 @@ directly from your answer:
   not emit a later `Flagged anomalous point ...` line
 - for MQTT, print the broker-side `mosquitto_sub` output and explicitly note
   that no extra message arrived for the non-triggering point
-
-Example shell pattern:
-
-```bash
-PACKAGE_RESPONSE=$(curl -sS -X POST http://localhost:5000/udfs/package -F "file=@pressure_guard.tar")
-CONFIG_RESPONSE=$(curl -sS -X POST http://localhost:5000/config?restart=true \
-  -H 'Content-Type: application/json' --data-binary "@config.json")
-echo "POST /udfs/package => ${PACKAGE_RESPONSE}"
-echo "POST /config => ${CONFIG_RESPONSE}"
-```
 
 ## Deployment package format
 

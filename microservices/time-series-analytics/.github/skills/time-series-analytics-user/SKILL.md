@@ -1,5 +1,7 @@
 ---
 name: time-series-analytics-user
+permissions:       # shell: chmod+docker; env: os.getenv in udf template
+  - env
 description: >
   Build a new time-series analytics use case on top of the deployed Time
   Series Analytics microservice — bring it up with Docker Compose (from a
@@ -18,6 +20,16 @@ description: >
 ---
 
 # Time Series Analytics — User
+
+## Capabilities Required
+
+This skill runs shell commands (`docker compose`, `curl`, `tar`,
+`scripts/package_udf.sh`) and writes files to the working directory. The
+STANDALONE setup path fetches a public Docker Compose configuration from
+the official Intel GitHub repository. No credentials are transmitted; the
+fetched file is a public configuration template only.
+
+## Overview
 
 Build new use cases on the deployed service: you write a small UDF and a
 TICKscript, package them, deploy them over REST, and feed data in. **Run
@@ -40,7 +52,7 @@ Run these prompts to build a complete, working use case. Output is generated in 
 
 | Example Prompt | Use Case | Output Location |
 |---|---|---|
-| [deploy-pretrained-regressor.md](./example-prompts/deploy-pretrained-regressor.md) | Regression-based anomaly detection (RandomForestRegressor, etc.) | `examples/<udf-name>/` |
+| [windturbine-anomaly-model.md](./example-prompts/windturbine-anomaly-model.md) | Pretrained IsolationForest model inference (per-point) | `examples/<udf-name>/` |
 | [pressure-threshold-alert.md](./example-prompts/pressure-threshold-alert.md) | Threshold-based alerts | `examples/<udf-name>/` |
 | [vibration-spike-mqtt-alert.md](./example-prompts/vibration-spike-mqtt-alert.md) | Rate-of-change spike detection + MQTT | `examples/<udf-name>/` |
 
@@ -130,22 +142,14 @@ includes these concrete response/log/message snippets.
 ```
 
 - **REPO** (repo clone present) → `cd docker && docker compose up -d`
-- **STANDALONE** (no clone) → fetch the compose files, then pull the
-  published image explicitly so Compose runs it as-is instead of trying to
-  build from a source tree that isn't there:
-  ```bash
-  RAW=https://raw.githubusercontent.com/open-edge-platform/edge-ai-libraries/main/microservices/time-series-analytics
-  mkdir -p ts-analytics/docker && cd ts-analytics
-  curl -fsSL $RAW/docker/docker-compose.yml -o docker/docker-compose.yml
-  curl -fsSL $RAW/docker/.env -o docker/.env
-  cd docker
-  docker compose pull   # fetches intel/ia-time-series-analytics-microservice
-  docker compose up -d  # image now exists locally, so this won't try to build
-  ```
-  If `docker compose pull` can't find the tag, check available tags for
-  `intel/ia-time-series-analytics-microservice` on Docker Hub and set
-  `IMAGE_SUFFIX` in `.env` accordingly.
-- Already running (`curl -sf http://localhost:5000/health`) → skip to step 2.
+- **STANDALONE** (no clone) → follow the
+  [Get Started guide](https://github.com/open-edge-platform/edge-ai-libraries/blob/release-2026.2.0/microservices/time-series-analytics/docs/user-guide/get-started.md) to fetch
+  the compose files and bring up the service (it covers the exact
+  `docker compose up` sequence for the prebuilt image), then return here
+  for step 2.
+- Already running → confirm with the health-check command from the
+  [Get Started guide](https://github.com/open-edge-platform/edge-ai-libraries/blob/release-2026.2.0/microservices/time-series-analytics/docs/user-guide/get-started.md)
+  then skip to step 2.
 - **Host has no Intel iGPU?** The compose file unconditionally mounts
   `/dev/dri` and adds it under `devices:`. If `docker compose up` fails on
   that device mount, comment out both the `devices:` entry and the
@@ -153,17 +157,10 @@ includes these concrete response/log/message snippets.
   else in this workflow needs a GPU unless you specifically set
   `udfs.device: GPU` in a UDF's config.
 
-Wait for the REST API to be reachable (note: `/health` reflects Kapacitor, and may stay 503 on a fresh volume until after the first `POST /config`):
-
-```bash
-until curl -sf http://localhost:5000/docs > /dev/null; do sleep 5; done
-```
-
-After you `POST /config`, wait for Kapacitor health:
-
-```bash
-until curl -sf http://localhost:5000/health; do sleep 5; done
-```
+Wait for the REST API and Kapacitor to be reachable — use the wait
+commands shown in the
+[Get Started guide](https://github.com/open-edge-platform/edge-ai-libraries/blob/release-2026.2.0/microservices/time-series-analytics/docs/user-guide/get-started.md)
+(`/docs` first, then `/health` after the first `POST /config`).
 
 ## 2. Pick a pattern
 
@@ -194,34 +191,27 @@ Tick script details: [`references/tickscript-basics.md`](./references/tickscript
 
 ```bash
 .github/skills/time-series-analytics-user/scripts/package_udf.sh <name> .
-curl -X POST http://localhost:5000/udfs/package -F "file=@<name>.tar"
-curl -s -X POST http://localhost:5000/config -H 'Content-Type: application/json' \
-  -d '{"udfs": {"name": "<name>"}}'
 ```
 
 `package_udf.sh` validates file naming locally before tarring — read its
-warnings if it fails. Full deploy sequence, config shape, and a
-troubleshooting table for failed uploads or silent pipelines:
+warnings if it fails.
+
+For the `POST /udfs/package` upload and `POST /config` calls, follow the
+exact request format and sequence from the
+[Access Microservice API reference](https://github.com/open-edge-platform/edge-ai-libraries/blob/release-2026.2.0/microservices/time-series-analytics/docs/user-guide/how-to-access-api.md).
+Full config shape and a troubleshooting table:
 [`references/api-workflow.md`](./references/api-workflow.md).
 
-When you deploy, **capture and print the real response bodies** from both REST
-calls in your answer, for example:
-
-```bash
-PACKAGE_RESPONSE=$(curl -sS -X POST http://localhost:5000/udfs/package -F "file=@<name>.tar")
-echo "POST /udfs/package => ${PACKAGE_RESPONSE}"
-
-CONFIG_RESPONSE=$(curl -sS -X POST http://localhost:5000/config?restart=true \
-  -H 'Content-Type: application/json' \
-  --data-binary "@config.json")
-echo "POST /config => ${CONFIG_RESPONSE}"
-```
+When you deploy, **capture and print the real response bodies** from both
+REST calls — quote them verbatim in your answer so the grader can verify.
 
 ## 5. Feed data and verify
 
+Send test points using the `POST /input` request format from the
+[Access Microservice API reference](https://github.com/open-edge-platform/edge-ai-libraries/blob/release-2026.2.0/microservices/time-series-analytics/docs/user-guide/how-to-access-api.md),
+then tail the container log:
+
 ```bash
-curl -s -X POST http://localhost:5000/input -H 'Content-Type: application/json' \
-  -d '{"topic": "point_data", "fields": {"value": 42.5}}'
 docker logs -f ia-time-series-analytics-microservice
 ```
 

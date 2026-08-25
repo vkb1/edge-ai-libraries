@@ -58,10 +58,12 @@ response.point.CopyFrom(point)
 self._agent.write_response(response, True)
 ```
 
-You're not limited to mirroring the input point — you can set
-`response.point.fieldsDouble["score"] = ...` etc. before writing it back, to
-attach a derived value (e.g. an anomaly score or z-score) rather than just
-the raw point.
+To attach a derived value (e.g. an anomaly score or z-score), set extra fields
+on the response point before writing it back:
+
+```python
+response.point.fieldsDouble["score"] = computed_score
+```
 
 ## State across points
 
@@ -80,7 +82,7 @@ def __init__(self, agent):
 ## Model loading
 
 `config.json`'s `udfs.models`/`udfs.device` fields are documented field-by-field
-in [Configure Microservice](https://github.com/open-edge-platform/edge-ai-libraries/blob/main/microservices/time-series-analytics/docs/user-guide/how-to-configure.md);
+in [Configure Microservice](https://github.com/open-edge-platform/edge-ai-libraries/blob/release-2026.2.0/microservices/time-series-analytics/docs/user-guide/how-to-configure.md);
 what that doc doesn't cover is the runtime contract your UDF process sees.
 If `udfs.models` names a file, and that file is placed under `models/` in
 your deployment package (named starting with `<udf_name>`), the

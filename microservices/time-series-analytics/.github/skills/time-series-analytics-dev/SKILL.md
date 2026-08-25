@@ -18,9 +18,7 @@ description: >
 Work on the service's source. **This skill assumes a repo clone** of
 `edge-ai-libraries` with this microservice at
 `microservices/time-series-analytics/`; if there is no clone, clone the
-repo first, or — if the user only wants to *use* the deployed service —
-switch to
-[`../time-series-analytics-user/SKILL.md`](../time-series-analytics-user/SKILL.md).
+repo first.
 Run all commands from the microservice root.
 
 ## When to Use

@@ -8,7 +8,7 @@ SPDX-License-Identifier: Apache-2.0
 ## Build from source
 
 The step-by-step build/push/deploy walkthrough is already maintained in
-[Get Started](https://github.com/open-edge-platform/edge-ai-libraries/blob/main/microservices/time-series-analytics/docs/user-guide/get-started.md)
+[Get Started](https://github.com/open-edge-platform/edge-ai-libraries/blob/release-2026.2.0/microservices/time-series-analytics/docs/user-guide/get-started.md)
 (`docker compose build`, optional `--build-arg COPYLEFT_SOURCES=true` for
 license-scan builds, `docker compose up -d`) — follow that rather than a
 copy here. What it doesn't itemize is which build args matter for
@@ -61,7 +61,7 @@ docker logs -f ia-time-series-analytics-microservice
 ## Helm deployment
 
 Full walkthrough:
-[Deploy with Helm](https://github.com/open-edge-platform/edge-ai-libraries/blob/main/microservices/time-series-analytics/docs/user-guide/get-started/deploy-with-helm.md)
+[Deploy with Helm](https://github.com/open-edge-platform/edge-ai-libraries/blob/release-2026.2.0/microservices/time-series-analytics/docs/user-guide/get-started/deploy-with-helm.md)
 (chart-specific value docs: `helm/README.md`). The one gotcha worth calling
 out here since it's easy to trip over while testing: the Helm deployment's
 externally exposed REST API port is **30002**
