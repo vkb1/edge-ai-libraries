@@ -1,11 +1,10 @@
 {
   "skill_name": "time-series-analytics-user",
-  "notes": "These benchmark prompts are self-contained. The runner does not start the microservice, so expectations grade produced artifacts (UDF, tick script, config.json, package) and their correctness rather than live container output.",
   "evals": [
     {
       "id": 1,
       "eval_name": "pressure-guard-artifact",
-      "prompt": "Build a UDF that flags hydraulic pressure readings outside a safe operating band, using the Time Series Analytics microservice at microservices/time-series-analytics. Field `pressure_bar` arrives via POST /input; flag any reading below 80 or above 150. Name the UDF `pressure_guard`.\n\nProduce the UDF file, tick script, config.json, and a deployment package (tar or zip). Do not start Docker or POST any data — show me the artifacts and the Docker Compose command I would use to deploy them.",
+      "prompt": "Build a UDF that flags hydraulic pressure readings outside a safe operating band, using the Time Series Analytics microservice. Field `pressure_bar` arrives via POST /input; flag any reading below 80 or above 150. Name the UDF `pressure_guard`.\n\nProduce the UDF file, tick script, config.json, and a deployment package (tar or zip).",
       "expected_output": "A pressure_guard UDF, tick script, config.json, and deployment package with correct threshold logic and the deploy command, without claiming a live deployment ran.",
       "files": [],
       "expectations": [
@@ -20,7 +19,7 @@
     {
       "id": 2,
       "eval_name": "vibration-spike-detector-artifact",
-      "prompt": "Build a UDF that detects sudden vibration spikes on a motor and publishes an MQTT alert when one occurs, using the Time Series Analytics microservice at microservices/time-series-analytics. Field `vibration_mm_s` arrives via POST /input; flag a point if it jumps more than 5 mm/s from the previous reading. Wire the flagged output to Kapacitor's native MQTT alert node in the tick script, using broker name `motor_alerts_broker` (matching the name field set in config.json's alerts.mqtt section). Name the UDF `vibration_spike_detector`.\n\nProduce the UDF file, tick script, config.json, and a deployment package. Do not start Docker or send any data — show me the artifacts and the deploy command. Explain which input sequence would flag (e.g. 2.1 → 9.5) and which would not (e.g. 9.5 → 9.6).",
+      "prompt": "Build a UDF that detects sudden vibration spikes on a motor and publishes an MQTT alert when one occurs, using the Time Series Analytics microservice. Field `vibration_mm_s` arrives via POST /input; flag a point if it jumps more than 5 mm/s from the previous reading. Wire the flagged output to Kapacitor's native MQTT alert node in the tick script, using broker name `motor_alerts_broker` (matching the name field set in config.json's alerts.mqtt section). Name the UDF `vibration_spike_detector`.\n\nProduce the UDF file, tick script, config.json, and a deployment package.",
       "expected_output": "A vibration_spike_detector UDF with stateful rate-of-change logic, a tick script wired to the MQTT alert node, config.json with the correct broker name, and a deployment package — without claiming a live run.",
       "files": [],
       "expectations": [

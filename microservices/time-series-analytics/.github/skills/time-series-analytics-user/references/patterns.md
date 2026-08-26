@@ -130,6 +130,8 @@ For models that output a discrete label (e.g., IsolationForest's -1 for anomaly)
 ```python
 import os
 import joblib
+from sklearnex import patch_sklearn
+patch_sklearn()   # accelerates predict() on CPU and Intel GPU; must precede sklearn imports
 
 MODEL_PATH = os.environ.get("MODEL_PATH")
 
@@ -156,6 +158,8 @@ For regression models, compute **prediction error** as anomaly indicator:
 ```python
 import os
 import joblib
+from sklearnex import patch_sklearn
+patch_sklearn()   # accelerates predict() on CPU and Intel GPU; must precede sklearn imports
 
 MODEL_PATH = os.environ.get("MODEL_PATH")
 ANOMALY_THRESHOLD = 20.0  # adjust based on your data distribution
@@ -190,9 +194,25 @@ and assemble the feature vector in the same order the model was trained on
 — get that ordering from the user or the model's training code, don't
 assume.
 
-To run inference on Intel iGPU instead of CPU, set `config.json`'s
-`udfs.device` to `"GPU"` (or `"GPU:N"` for a specific device) — the
-resolved value arrives as the `DEVICE` env var.
+**sklearnex for training**: apply the same patch in your offline training
+script before any sklearn import — it accelerates `fit()` on both CPU and
+Intel GPU with no changes to training code:
+
+```python
+from sklearnex import patch_sklearn
+patch_sklearn()
+from sklearn.ensemble import IsolationForest   # or any other sklearn estimator
+import joblib
+
+model = IsolationForest(...).fit(X_train)
+joblib.dump(model, "<udf_name>.pkl")   # saves a standard sklearn-compatible pickle
+```
+
+`patch_sklearn()` is transparent to pickling — the saved model loads
+correctly in any environment. To target the Intel iGPU at inference time,
+set `config.json`'s `udfs.device` to `"GPU"` (or `"GPU:N"`) — the resolved
+value arrives as the `DEVICE` env var and sklearnex selects the device
+automatically.
 
 ## Batch Windowed Inference
 

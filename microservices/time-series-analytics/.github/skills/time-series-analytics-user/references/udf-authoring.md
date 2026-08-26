@@ -93,10 +93,17 @@ process:
 - `DEVICE` — `"auto"` (CPU) or `"GPU"` / `"GPU:N"`, resolved from
   `udfs.device` in `config.json`
 
-Load the model once in `__init__`, never per-point:
+Load the model once in `__init__`, never per-point. Always call
+`patch_sklearn()` **before** any `sklearn` import — it accelerates all
+scikit-learn algorithms via Intel oneDAL on both CPU and Intel GPU with no
+code changes to `fit()` / `predict()` / `decision_function()` calls:
 
 ```python
 import os, joblib, sys
+from sklearnex import patch_sklearn
+patch_sklearn()   # must precede any sklearn import
+import sklearn
+
 MODEL_PATH = os.environ.get("MODEL_PATH")
 DEVICE = os.environ.get("DEVICE", "auto")
 
@@ -115,10 +122,32 @@ class Handler(...):
 ```
 
 Intel® Extension for Scikit-learn* (`scikit-learn-intelex`) is preinstalled
-in the image, so a scikit-learn-compatible model's `.predict()` /
-`.decision_function()` calls can transparently target the Intel iGPU when
-`DEVICE` is `"GPU"` — no code change needed beyond honoring the env var if
-your model-loading code patches in the extension explicitly.
+in the image. Calling `patch_sklearn()` before sklearn imports accelerates
+all compatible algorithms (including `IsolationForest`, `OneClassSVM`,
+`RandomForestRegressor`, etc.) on **both CPU and Intel GPU** via Intel oneDAL
+— no change to `fit()`, `predict()`, or `decision_function()` calls is
+needed. To target the Intel iGPU specifically, set `config.json`'s
+`udfs.device` to `"GPU"` (or `"GPU:N"`) and the resolved `DEVICE` env var
+will select the device automatically.
+
+**Training**: apply the same patch during offline model training so the
+training step also benefits from oneDAL acceleration:
+
+```python
+# In your offline training script, before any sklearn imports:
+from sklearnex import patch_sklearn
+patch_sklearn()
+from sklearn.ensemble import IsolationForest
+import joblib
+
+model = IsolationForest(...).fit(X_train)
+joblib.dump(model, "windturbine_anomaly_detector.pkl")
+```
+
+`patch_sklearn()` is transparent to pickling — the saved model is a standard
+sklearn object and loads correctly in any environment (with or without
+sklearnex). The sklearn version-compatibility caveat still applies; see
+[scikit-learn version compatibility](#scikit-learn-version-compatibility-silent-failure-mode).
 
 ### scikit-learn version compatibility (silent failure mode)
 
