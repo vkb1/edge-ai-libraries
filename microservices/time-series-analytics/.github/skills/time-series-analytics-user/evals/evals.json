@@ -1,0 +1,36 @@
+{
+  "skill_name": "time-series-analytics-user",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "pressure-guard-artifact",
+      "prompt": "Build a UDF that flags hydraulic pressure readings outside a safe operating band, using the Time Series Analytics microservice. Field `pressure_bar` arrives via POST /input; flag any reading below 80 or above 150. Name the UDF `pressure_guard`.\n\nProduce the UDF file, tick script, config.json, and a deployment package (tar or zip).",
+      "expected_output": "A pressure_guard UDF, tick script, config.json, and deployment package with correct threshold logic and the deploy command, without claiming a live deployment ran.",
+      "files": [],
+      "expectations": [
+        "A UDF file named pressure_guard.py exists implementing threshold detection logic",
+        "A tick script named pressure_guard.tick exists and its UDF node invokes @pressure_guard()",
+        "The UDF reads the pressure_bar field specifically, not a different or generic field name",
+        "The UDF logic correctly flags values < 80 or > 150 (the threshold band is [80, 150])",
+        "A tar or zip deployment package is created containing both the UDF and tick script",
+        "A config.json or equivalent exists specifying udfs.name as pressure_guard"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "vibration-spike-detector-artifact",
+      "prompt": "Build a UDF that detects sudden vibration spikes on a motor and publishes an MQTT alert when one occurs, using the Time Series Analytics microservice. Field `vibration_mm_s` arrives via POST /input; flag a point if it jumps more than 5 mm/s from the previous reading. Wire the flagged output to Kapacitor's native MQTT alert node in the tick script, using broker name `motor_alerts_broker` (matching the name field set in config.json's alerts.mqtt section). Name the UDF `vibration_spike_detector`.\n\nProduce the UDF file, tick script, config.json, and a deployment package.",
+      "expected_output": "A vibration_spike_detector UDF with stateful rate-of-change logic, a tick script wired to the MQTT alert node, config.json with the correct broker name, and a deployment package — without claiming a live run.",
+      "files": [],
+      "expectations": [
+        "A UDF file named vibration_spike_detector.py exists that tracks a previous value across point() calls as instance state",
+        "A tick script named vibration_spike_detector.tick exists that references the vibration_spike_detector UDF node",
+        "The tick script chains a Kapacitor |alert() node off the UDF output with a .mqtt('<topic>') call for the MQTT topic and a separate .brokerName('motor_alerts_broker') call, where 'motor_alerts_broker' matches config.json's alerts.mqtt.name (note: .mqtt() takes a topic string, not the broker name — the broker is selected via .brokerName())",
+        "The UDF implements rate-of-change detection: flags if abs(current - previous) > 5.0 mm/s",
+        "The rate-of-change threshold used is exactly 5 mm/s as specified",
+        "The vibration_mm_s field is read correctly (not a generic or different field name)",
+        "A config.json or equivalent specifies udfs.name as vibration_spike_detector and includes an alerts.mqtt section with a name field set to motor_alerts_broker"
+      ]
+    }
+  ]
+}
