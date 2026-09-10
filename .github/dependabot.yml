@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 # update the submodules on a weekly interval
 version: 2
+multi-ecosystem-groups:
+  time-series-analytics-python:
+    schedule:
+      interval: weekly
 updates:
 
   # ─────────────────────────────────────────
@@ -100,17 +104,6 @@ updates:
         patterns:
           - "*"
 
-
-# ─────────────────────────────────────────
-# Python (pip) — Time Series Analytics 
-# ─────────────────────────────────────────
-
-multi-ecosystem-groups:
-  time-series-analytics-python:
-    schedule:
-      interval: weekly
-
-updates:
   - package-ecosystem: "pip"
     directory: "/microservices/time-series-analytics"
     multi-ecosystem-group: time-series-analytics-python
