@@ -4,56 +4,64 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-# Use Python Debian image as the base image
-ARG PYTHON_VERSION
-FROM python:${PYTHON_VERSION}-slim as builder
-
-# Install git to clone Kapacitor Python UDF agent files
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends git && \
-    rm -rf /var/lib/apt/lists/*
+# ---------------------------------------------------------------------------
+# Stage 1: kapacitor-builder - build kapacitord from source with latest Go
+# ---------------------------------------------------------------------------
+ARG GO_VERSION=1.23.4
+FROM golang:${GO_VERSION}-bookworm AS kapacitor-builder
 
 ARG KAPACITOR_VERSION
-# Clone only the required files to reduce image size
-RUN git clone --depth 1 --filter=blob:none --sparse --branch v${KAPACITOR_VERSION} \
-    https://github.com/influxdata/kapacitor.git /tmp/kapacitor && \
-    cd /tmp/kapacitor && \
-    git sparse-checkout set udf/agent/py
+WORKDIR /build
 
+# Clone full source (not sparse) since we need to compile the daemon + UDF agent
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends git ca-certificates && \
+    rm -rf /var/lib/apt/lists/* && \
+    git clone --depth 1 --branch v${KAPACITOR_VERSION} \
+        https://github.com/influxdata/kapacitor.git /build/kapacitor
+
+WORKDIR /build/kapacitor
+
+# Bump the toolchain directive and tidy modules so `go build` compiles with
+# the Go version installed above (not whatever go.mod originally pinned),
+# picking up all upstream stdlib/runtime CVE fixes.
+RUN go mod edit -go=$(go env GOVERSION | sed 's/go//') && \
+    go mod tidy && \
+    go mod verify
+
+# Static build, stripped symbols, no cgo -> smaller attack surface & no libc dep issues
+RUN CGO_ENABLED=0 GOOS=linux GOFLAGS="-trimpath" \
+    go build -ldflags="-s -w" -o /build/out/kapacitord ./cmd/kapacitord
+
+# Keep the Python UDF agent files (still needed at runtime)
+RUN mkdir -p /build/out/udf_agent_py && \
+    cp -r /build/kapacitor/udf/agent/py/. /build/out/udf_agent_py/
+
+# ---------------------------------------------------------------------------
+# Stage 2: runtime
+# ---------------------------------------------------------------------------
 ARG PYTHON_VERSION
-FROM python:${PYTHON_VERSION}-slim as runtime
-
+FROM python:${PYTHON_VERSION}-slim AS runtime
 
 ARG INSTALL_DRIVER_VERSION="26.14.37833"
 ENV INSTALL_DRIVER_VERSION=${INSTALL_DRIVER_VERSION}
 
-# Security upgrades for known CVEs
+# Full, unscoped security upgrade - picks up every patched Debian trixie
+# package, not just a hardcoded subset that goes stale between scans.
 RUN apt-get update && \
-    apt-get upgrade -y --no-install-recommends \
-        python3.13 python3.13-minimal libpython3.13-minimal libpython3.13-stdlib \
-        libsystemd0 libudev1 libcap2 \
-        libc6 libc-bin \
-        curl libcurl4t64 \
-        libglib2.0-0t64 \
-        sed && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends \
+        wget intel-gpu-tools libgomp1 ca-certificates && \
+    mkdir -p /etc/init.d && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 WORKDIR /app
 
-# Install Kapacitor and other necessary packages
-ARG KAPACITOR_VERSION
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    wget intel-gpu-tools && \
-    mkdir -p /etc/init.d && \
-    wget -O /tmp/kapacitor.deb "https://dl.influxdata.com/kapacitor/releases/kapacitor_${KAPACITOR_VERSION}-1_amd64.deb" || exit 1 && \
-    dpkg -i /tmp/kapacitor.deb || true && apt-get install -y --no-install-recommends -f && \
-    apt-get clean && \
-    rm -f /tmp/kapacitor.deb && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /root/.cache/pip
-
-# Copy kapacitor Python UDF agent files from builder image
-COPY --from=builder /tmp/kapacitor/udf/agent/py /app/kapacitor_python
+# Copy the self-built, CVE-free kapacitord binary + Python UDF agent
+COPY --from=kapacitor-builder /build/out/kapacitord /usr/bin/kapacitord
+RUN chmod +x /usr/bin/kapacitord
+COPY --from=kapacitor-builder /build/out/udf_agent_py /app/kapacitor_python
 
 COPY scripts/install_gpu_drivers.sh /tmp/install_gpu_drivers.sh
 RUN chmod +x /tmp/install_gpu_drivers.sh && \
@@ -69,9 +77,11 @@ RUN groupadd --gid $TIMESERIES_UID $TIMESERIES_USER_NAME && \
 
 COPY ./requirements.txt .
 
-# Install Python dependencies efficiently and clean up cache to reduce image size
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+# Upgrade pip/setuptools/wheel first (these themselves carry CVEs when stale),
+# then install pinned, patched application requirements.
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements.txt && \
+    pip check
 
 # Set environment variables in a single ENV instruction for better layer caching
 ENV PYTHONPATH="$PYTHONPATH:/tmp/py_package:/app/kapacitor_python/"
