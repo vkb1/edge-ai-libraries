@@ -26,8 +26,9 @@ Verify that your development environment meets the following specifications:
 Execute the automated installation script to configure the complete development environment:
 
 ```bash
-curl https://raw.githubusercontent.com/open-edge-platform/edge-ai-suites/refs/heads/main/metro-ai-suite/metro-sdk-manager/scripts/oep-vision-ai-sdk.sh | bash
+curl https://raw.githubusercontent.com/open-edge-platform/metro-ai-suite/refs/heads/main/metro-sdk-manager/scripts/oep-vision-ai-sdk.sh | bash
 ```
+
 
 ![OEP Vision AI SDK Installation](images/oep-vision-ai-sdk-install.png)
 
@@ -171,7 +172,7 @@ Profiling and monitoring performance of OEP Vision AI workloads using command-li
 
 ### Support Channels
 
-- [GitHub Issues](https://github.com/open-edge-platform/edge-ai-suites/issues)
+- [GitHub Issues](https://github.com/open-edge-platform/metro-ai-suite/issues)
   \- Technical issue tracking and community support
 
 <!--hide_directive
