@@ -2120,6 +2120,16 @@ ensure_ram_size () {
 }
 
 
+# robustly remove files or dirs
+ensure_rm () {
+  local d
+  for d in "$@"; do
+    [ -e "$d" ] || continue
+    rm -rf "$d" > /dev/null 2>&1 || ensure_sudo rm -rf "$d" > /dev/null 2>&1 || true
+  done
+}
+
+
 ensure_sbom_format () {
   local key=$1; shift
   case "$key" in
@@ -2442,13 +2452,14 @@ debian_90_stop_agentic_predictive_maintenance_pipeline () {
   configure_agentic_predictive_maintenance_pipeline
   cd "$workspace"/agentic-predictive-maintenance-pipeline && {
     . ./setup.sh --stop || true
-    . ./setup.sh --clean-data
+    . ./setup.sh --clean-data || true
+    docker volume prune -f
   } || true
 }
 
 debian_90_remove_agentic_predictive_maintenance_pipeline () {
   debian_90_stop_agentic_predictive_maintenance_pipeline "$@"
-  ensure_sudo rm -rf "$workspace"
+  ensure_rm "$workspace"
 }
 
 
@@ -2522,7 +2533,7 @@ debian_90_stop_agentic_smart_community () {
 
 debian_90_remove_agentic_smart_community () {
   debian_90_stop_agentic_smart_community "$@"
-  ensure_sudo rm -rf "$workspace"
+  ensure_rm "$workspace"
 }
 
 
@@ -2635,7 +2646,7 @@ test_anomalib_pipeline(root_path, dataset_path, sys.argv[2])
 
 debian_80_remove_anomalib () {
   configure_anomalib $*
-  ensure_sudo rm -rf "$workspace" 2> /dev/null || true
+  ensure_rm "$workspace"
 }
 
 
@@ -2761,6 +2772,15 @@ debian_90_sbom_autonomous_mobile_robot () {
 
   ensure_sbom_format pkg-list $amr_sdk_pkg $amr_slam_pkg
 }
+
+debian_30_install_build_essential () {
+  ensure_apt_install_package build-essential
+}
+
+debian_30_sbom_build_essential () {
+  ensure_sbom_format pkg-list build-essential
+}
+
 
 debian_30_install_chrony () {
   ensure_apt_install_package chrony
@@ -2908,7 +2928,7 @@ debian_90_stop_dine_in () {
 
 debian_90_remove_dine_in () {
   debian_90_stop_dine_in "$@"
-  rm -rf "$workspace" 2> /dev/null || ensure_sudo rm -rf "$workspace" 2> /dev/null || true
+  ensure_rm "$workspace"
 }
 
 
@@ -3633,9 +3653,9 @@ debian_85_start_esq () {
 debian_85_remove_esq () {
   configure_uv
   configure_esq
-  esq clean --all
+  esq clean --all || true
   uv tool uninstall --force esq || true
-  ensure_sudo rm -rf "$workspace" 2> /dev/null || true
+  ensure_rm "$workspace"
 }
 
 debian_70_install_ffmpeg () {
@@ -3708,7 +3728,7 @@ debian_90_stop_geti () {
 
 debian_90_remove_geti () {
   debian_90_stop_geti "$@"
-  docker image rm $image_name || true
+  docker image rm -f $image_name || true
 }
 
 
@@ -3862,7 +3882,7 @@ debian_90_stop_handheld_multi_modal () {
 
 debian_90_remove_handheld_multi_modal () {
   debian_90_stop_handheld_multi_modal $*
-  ensure_sudo rm -rf "$workspace" 2> /dev/null || true
+  ensure_rm "$workspace"
 }
 
 
@@ -3949,7 +3969,7 @@ debian_90_remove_humanoid_imitation_learning () {
     images+=("robotics-ai-suite:humanoid-imitation-learning-$sample")
   done
   docker image rm -f "${images[@]}" > /dev/null 2>&1 || true
-  ensure_sudo rm -rf "$workspace"
+  ensure_rm "$workspace"
 }
 
 debian_30_install_intel_lpmd () {
@@ -3993,7 +4013,7 @@ configure_libyang () {
 }
   
 debian_40_profile_libyang () {
-  echo "cmake make git"
+  echo "git build_essential"
 }
 
 verify_libyang () {
@@ -4019,7 +4039,7 @@ debian_40_install_libyang () {
 debian_40_remove_libyang () {
   configure_libyang
   cd "$workspace/build" && ensure_sudo make uninstall || true
-  rm -rf "$workspace"
+  ensure_rm "$workspace"
 }
 
 
@@ -4145,7 +4165,7 @@ debian_90_stop_live_video_alert_agent () {
 
 debian_90_remove_live_video_alert_agent () {
   debian_90_stop_live_video_alert_agent "$@"
-  rm -rf "$workspace" 2> /dev/null || ensure_sudo rm -rf "$workspace" 
+  ensure_rm "$workspace"
 }
 
 configure_live_video_captioning () {
@@ -4227,7 +4247,7 @@ debian_90_stop_live_video_captioning () {
 
 debian_90_remove_live_video_captioning () {
   debian_90_stop_live_video_captioning || true
-  ensure_sudo rm -rf "$workspace" 2> /dev/null || true
+  ensure_rm "$workspace"
 }
 
 configure_live_video_captioning_rag () {
@@ -4308,13 +4328,13 @@ debian_90_start_live_video_captioning_rag () {
 
 debian_90_stop_live_video_captioning_rag () {
   configure_live_video_captioning_rag
-  cd "$workspace"/live-video-analysis/live-video-captioning-rag
-  docker compose -f compose.yaml down -v --remove-orphans
+  cd "$workspace"/live-video-analysis/live-video-captioning-rag && 
+  docker compose -f compose.yaml down -v --remove-orphans || true
 }
 
 debian_90_remove_live_video_captioning_rag () {
-  debian_90_stop_live_video_captioning_rag || true
-  ensure_sudo rm -rf "$workspace" 2> /dev/null || true
+  debian_90_stop_live_video_captioning_rag
+  ensure_rm "$workspace"
 }
 
 configure_live_video_search () {
@@ -4396,12 +4416,13 @@ debian_90_stop_live_video_search () {
     set +a
     . ./setup.sh --down || true
     . ./setup.sh --clean-data || true
-  }
+    docker volume rm docker_ov_models -f
+  } || true
 }
 
 debian_90_remove_live_video_search () {
   debian_90_stop_live_video_search "$@"
-  rm -rf "$workspace" 2> /dev/null || ensure_sudo rm -rf "$workspace" 
+  ensure_rm "$workspace"
 }
 
 configure_loitering_detection () {
@@ -4476,12 +4497,12 @@ debian_90_stop_loitering_detection () {
   configure_loitering_detection
   cd "$workspace"/metro-vision-ai-app-recipe
   ./sample_stop.sh || true
-  docker compose -f compose-without-scenescape.yml down -v --remove-orphans
+  docker compose -f compose-without-scenescape.yml down -v --remove-orphans || true
 }
 
 debian_90_remove_loitering_detection () {
-  debian_90_stop_loitering_detection || true
-  ensure_sudo rm -rf "$workspace" 2> /dev/null || true
+  debian_90_stop_loitering_detection
+  ensure_rm "$workspace"
 }
 
 configure_loss_prevention () {
@@ -4627,7 +4648,7 @@ debian_90_start_loss_prevention () {
 debian_90_remove_loss_prevention () {
   configure_loss_prevention
   cd "$workspace" && make down-lp || true
-  ensure_sudo rm -rf "$workspace" 2> /dev/null || true
+  ensure_rm "$workspace"
 }
 
 
@@ -4669,7 +4690,7 @@ debian_70_install_mediamtx () {
 }
 
 debian_70_remove_mediamtx () {
-  ensure_sudo rm -f "$bin_path/mediamtx"
+  ensure_rm "$bin_path/mediamtx"
 }
 
 
@@ -4841,7 +4862,7 @@ debian_90_stop_multimodal_weld_defect_detection () {
 
 debian_90_remove_multimodal_weld_defect_detection () {
   debian_90_stop_multimodal_weld_defect_detection "$@"
-  ensure_sudo rm -rf "$workspace" 2> /dev/null || true
+  ensure_rm "$workspace"
 }
 
 configure_nicu_warmer () {
@@ -4947,12 +4968,16 @@ debian_90_start_nicu_warmer () {
 
 debian_90_stop_nicu_warmer () {
   configure_nicu_warmer "$@"
-  cd "$workspace"/NICU-Warmer && make down || true
+  cd "$workspace"/NICU-Warmer && {
+    make down || true
+    docker volume rm -f nicu-warmer_dlsps-shared || true
+    docker volume prune -f
+  } || true
 }
 
 debian_90_remove_nicu_warmer () {
   debian_90_stop_nicu_warmer
-  ensure_sudo rm -rf "$workspace" 2> /dev/null || true
+  ensure_rm "$workspace"
 }
 
 debian_70_install_nodejs () {
@@ -5027,7 +5052,7 @@ debian_40_remove_npu_accel () {
   [ "$(ensure_prop get installed/npu_accel/owned)" = "true" ] || return 0
 
   ensure_apt autoremove -m -y intel-driver-compiler-npu intel-fw-npu intel-level-zero-npu intel-level-zero-npu-dbgsym || true
-  ensure_sudo rm -rf "$workspace" 2> /dev/null || true
+  ensure_rm "$workspace"
 }
 
 debian_40_sbom_npu_accel () {
@@ -5211,7 +5236,7 @@ debian_90_stop_pallet_defect_detection () {
 
 debian_90_remove_pallet_defect_detection () {
   debian_90_stop_pallet_defect_detection
-  ensure_sudo rm -rf "$workspace" 2> /dev/null || true
+  ensure_rm "$workspace"
 }
 
 configure_pcb_anomaly_detection () {
@@ -5305,7 +5330,7 @@ debian_90_stop_pcb_anomaly_detection () {
 
 debian_90_remove_pcb_anomaly_detection () {
   debian_90_stop_pcb_anomaly_detection
-  ensure_sudo rm -rf "$workspace" 2> /dev/null || true
+  ensure_rm "$workspace"
 }
 
 debian_05_install_pciutils () {
@@ -5328,7 +5353,7 @@ verify_pcm () {
 }
 
 debian_40_profile_pcm () {
-  echo "cmake make git"
+  echo "git build_essential"
 }
 
 debian_40_install_pcm () {
@@ -5351,7 +5376,7 @@ debian_40_install_pcm () {
 
 debian_40_remove_pcm () {
   configure_pcm
-  ensure_sudo rm -rf "$workspace" /usr/local/share/pcm /usr/local/sbin/pcm /usr/local/sbin/pcm-* \
+  ensure_rm "$workspace" /usr/local/share/pcm /usr/local/sbin/pcm /usr/local/sbin/pcm-* \
     /usr/local/bin/pcm-* /usr/local/share/licenses/pcm /usr/local/share/doc/PCM
 }
 
@@ -5452,7 +5477,7 @@ EOF
 
 debian_91_remove_physical_ai_framework () {
   configure_physical_ai_framework
-  ensure_sudo rm -rf "$workspace"
+  ensure_rm "$workspace"
 }
 
 # Physical AI Studio - the end-to-end Physical AI application (the
@@ -5591,7 +5616,7 @@ debian_92_remove_physical_ai_studio () {
   configure_uv
   debian_92_stop_physical_ai_studio "$@" || true
   uv tool uninstall "$pais_pkg" > /dev/null 2>&1 || true
-  ensure_sudo rm -rf "$pais_run_dir"
+  ensure_rm "$pais_run_dir"
 }
 
 debian_15_install_pipx () {
@@ -5858,7 +5883,7 @@ debian_55_remove_realsense () {
   configure_realsense
   if verify_realsense; then
     ensure_apt autoremove -m -y librealsense2 librealsense2-dkms ros-$ros_distro-librealsense2 || true
-    ensure_sudo rm -f $rs_key_file $rs_list
+    ensure_rm $rs_key_file $rs_list
   else
     echo "RealSense SDK already removed. Skipping"
   fi
@@ -6262,7 +6287,7 @@ debian_90_stop_scenescape () {
 debian_90_remove_scenescape () {
   debian_90_stop_scenescape "$@"
   cd "$workspace" && make clean-all || true
-  ensure_sudo rm -rf "$workspace"
+  ensure_rm "$workspace"
 }
 
 
@@ -6358,7 +6383,7 @@ debian_90_stop_sensor_fusion_for_traffic_management_post_fusion () {
 
 debian_90_remove_sensor_fusion_for_traffic_management_post_fusion () {
   debian_90_stop_sensor_fusion_for_traffic_management_post_fusion "$@"
-  rm -rf "$workspace" || ensure_sudo rm -rf "$workspace"
+  ensure_rm "$workspace"
 }
 
 
@@ -6457,7 +6482,7 @@ debian_90_stop_smart_intersection () {
 
 debian_90_remove_smart_intersection () {
   debian_90_stop_smart_intersection
-  ensure_sudo rm -rf "$workspace" 2> /dev/null || true
+  ensure_rm "$workspace"
 }
 
 configure_smart_kiosk_assistant () {
@@ -6577,7 +6602,7 @@ debian_90_stop_smart_kiosk_assistant () {
 debian_90_remove_smart_kiosk_assistant () {
   debian_90_stop_smart_kiosk_assistant "$@"
   cd "$workspace"/smart-kiosk-assistant && make clean || true
-  rm -rf "$workspace" || ensure_sudo rm -rf "$workspace"
+  ensure_rm "$workspace"
 }
 
 
@@ -6636,7 +6661,7 @@ debian_90_stop_smart_nvr () {
 
 debian_90_remove_smart_nvr () {
   debian_90_stop_smart_nvr "$@"
-  ensure_sudo rm -rf "$workspace"
+  ensure_rm "$workspace"
 }
 
 
@@ -6728,7 +6753,7 @@ debian_90_stop_smart_parking () {
 
 debian_90_remove_smart_parking () {
   debian_90_stop_smart_parking || true
-  ensure_sudo rm -rf "$workspace" 2> /dev/null || true
+  ensure_rm "$workspace"
 }
 
 
@@ -6807,8 +6832,8 @@ debian_90_stop_smart_traffic_intersection_agent () {
 
 debian_90_remove_smart_traffic_intersection_agent () {
   debian_90_stop_smart_traffic_intersection_agent "$@"
-  . ./setup.sh --clean --all
-  ensure_sudo rm -rf "$workspace" 
+  . ./setup.sh --clean --all || true
+  ensure_rm "$workspace" 
 }
  
 
@@ -7014,7 +7039,7 @@ debian_90_stop_take_away () {
 
 debian_90_remove_take_away () {
   debian_90_stop_take_away "$@"
-  rm -rf "$workspace" 2> /dev/null || ensure_sudo rm -rf "$workspace" 2> /dev/null || true
+  ensure_rm "$workspace"
 }
 
 
@@ -7031,7 +7056,7 @@ verify_time_confighub () {
 }
 
 debian_70_profile_time_confighub () {
-  echo "cmake make libyang git"
+  echo "libyang git build_essential"
 }
 
 debian_70_install_time_confighub () {
@@ -7050,7 +7075,7 @@ debian_70_install_time_confighub () {
 debian_70_remove_time_confighub () {
   configure_time_confighub
   cd "$workspace" && ensure_sudo ./uninstall.sh --force || true
-  rm -rf "$workspace"
+  ensure_rm "$workspace"
 }
 
 
@@ -7104,12 +7129,16 @@ debian_85_start_uav_mission_compute_sdk () {
 
 debian_85_stop_uav_mission_compute_sdk () {
   configure_uav_mission_compute_sdk
-  cd "$workspace"/federal-and-aerospace-ai-suite/uav-mission-compute-sdk && make down || true
+  cd "$workspace"/federal-and-aerospace-ai-suite/uav-mission-compute-sdk && {
+    make down || true
+    docker volume rm -f uav-mission-compute-sdk_grafana-data uav-mission-compute-sdk_influxdb-data || true
+    docker volume prune -f
+  } || true
 }
 
 debian_85_remove_uav_mission_compute_sdk () {
   debian_85_stop_uav_mission_compute_sdk "$@"
-  ensure_sudo rm -rf "$workspace"
+  ensure_rm "$workspace"
 }
 
 
@@ -7261,7 +7290,7 @@ debian_90_stop_video_processing_for_nvr () {
 
 debian_90_remove_video_processing_for_nvr () {
   debian_90_stop_video_processing_for_nvr "$@"
-  rm -rf "$workspace" || ensure_sudo rm -rf "$workspace"
+  ensure_rm "$workspace"
 }
 
 
@@ -7391,7 +7420,7 @@ debian_85_stop_video_search_and_summarization () {
 
 debian_85_remove_video_search_and_summarization () {
   debian_85_stop_video_search_and_summarization "$@"
-  ensure_sudo rm -rf "$workspace" 2> /dev/null || true
+  ensure_rm "$workspace"
 }
 
 configure_vippet () {
@@ -7436,7 +7465,7 @@ debian_90_stop_vippet () {
 
 debian_90_remove_vippet () {
   debian_90_stop_vippet $* || true
-  ensure_sudo rm -rf "$workspace" 2> /dev/null || true
+  ensure_rm "$workspace"
 }
 
 configure_visual_search_question_and_answering () {
@@ -7526,8 +7555,8 @@ debian_90_stop_visual_search_question_and_answering () {
 }
 
 debian_90_remove_visual_search_question_and_answering () {
-  debian_90_stop_visual_search_question_and_answering $* || true
-  ensure_sudo rm -rf "$workspace" 2> /dev/null || true
+  debian_90_stop_visual_search_question_and_answering "$@"
+  ensure_rm "$workspace"
 }
 
 debian_10_install_wget () {
@@ -7676,7 +7705,7 @@ debian_90_stop_wind_turbine_anomaly_detection () {
 
 debian_90_remove_wind_turbine_anomaly_detection () {
   debian_90_stop_wind_turbine_anomaly_detection "$@"
-  rm -rf "$workspace" || ensure_sudo rm -rf "$workspace"
+  ensure_rm "$workspace"
 }
 
 
