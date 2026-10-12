@@ -3717,12 +3717,10 @@ debian_40_install_npu_accel ()
             ( set -o pipefail;
             ensure_fetch "$p" - | tar xfz - ) || { 
                 echo "npu_accel: failed to download/extract $p" 1>&2;
-                echo "If curl reported an SSL certificate problem, your network may use a TLS-inspecting proxy whose root CA is not trusted; add it to the system trust store and retry." 1>&2;
                 return 3
             };
         done;
         ensure_apt install -y $(find . -name "*.deb" -print);
-        cd - > /dev/null;
         ensure_rm "$workspace";
         verify_npu_accel_packages;
     fi;
