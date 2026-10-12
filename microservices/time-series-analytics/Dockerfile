@@ -80,7 +80,7 @@ COPY ./requirements.txt .
 #
 # The oneAPI/DPC++ runtime wheels pulled in by scikit-learn-intelex-gpu also
 # bundle components that duplicate the GPU driver stack installed above via
-# install_gpu_drivers.sh (intel-igc-core/opencl, intel-opencl-icd,
+# the pinned .deb install above (intel-igc-core/opencl, intel-opencl-icd,
 # libze-intel-gpu1), or that oneDAL/oneMKL GPU execution never exercises:
 #   - intel_opencl_rt's CPU OpenCL runtime (libintelocl*) - GPU OpenCL ICD
 #     already comes from the system driver; CPU paths use daal directly.
@@ -101,8 +101,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
     rm -rf /usr/local/lib/clang /usr/local/opt/compiler/lib/libomptarget-opencl*.bc && \
     hardlink --ignore-time /usr/local/lib && \
     find /usr/local/lib -maxdepth 1 -type f \( -name '*.dbg' -o -name '*.a' -o -name '*-gdb.py' \) -delete && \
-    rm -rf /usr/local/lib/__pycache__ && \
-    python -m pip uninstall -y pip
+    rm -rf /usr/local/lib/__pycache__
 
 # Set environment variables in a single ENV instruction for better layer caching
 ENV PYTHONPATH="$PYTHONPATH:/tmp/py_package:/app/kapacitor_python/"
