@@ -2343,12 +2343,9 @@ configure_loitering_detection ()
 { 
     workspace="$(ensure_project_path)/loitering-detection";
     version=release-2026.2.0;
-    repository="https://github.com/open-edge-platform/metro-ai-suite.git"
-}
-configure_loitering_detection_device () 
-{ 
-    local device="$1";
-    sed -i "/No device selected/,/fi/{s|defaulting to ...|defaulting to ${device^^}|;s|forced.*=.*$|forced${device^^}=true|}" "$workspace"/metro-vision-ai-app-recipe/loitering-detection/sample_start.sh
+    repository="https://github.com/open-edge-platform/metro-ai-suite.git";
+    used_ports=(80 443 3478);
+    wait_timeout=120
 }
 configure_loss_prevention () 
 { 
@@ -2513,12 +2510,8 @@ configure_pallet_defect_detection ()
     workspace="$(ensure_project_path)/pallet-defect-detection";
     version=release-2026.2.0;
     repository="https://github.com/open-edge-platform/manufacturing-ai-suite.git";
-    used_ports=(80 443)
-}
-configure_pallet_defect_detection_device () 
-{ 
-    local device="$1";
-    sed -i "s|^PIPELINE=.*$|PIPELINE=pallet_defect_detection${device//_cpu/}|" "$workspace"/industrial-edge-insights-vision/sample_start.sh
+    used_ports=(80 443);
+    wait_timeout=120
 }
 configure_pcb_anomaly_detection () 
 { 
@@ -2526,11 +2519,6 @@ configure_pcb_anomaly_detection ()
     version=release-2026.2.0;
     repository="https://github.com/open-edge-platform/manufacturing-ai-suite.git";
     used_ports=(80 443)
-}
-configure_pcb_anomaly_detection_device () 
-{ 
-    local device="$1";
-    sed -i "s|^PIPELINE=.*$|PIPELINE=pcb_anomaly_detection${device//_cpu/}|" "$workspace"/industrial-edge-insights-vision/sample_start.sh
 }
 configure_pcm () 
 { 
@@ -2769,11 +2757,6 @@ configure_smart_parking ()
     repository="https://github.com/open-edge-platform/metro-ai-suite.git";
     used_ports=(80 443 3478);
     wait_timeout=120
-}
-configure_smart_parking_device () 
-{ 
-    local device="$1";
-    sed -i "/No device selected/,/fi/{s|defaulting to ...|defaulting to ${device^^}|;s|forced.*=.*$|forced${device^^}=true|}" "$workspace"/metro-vision-ai-app-recipe/smart-parking/sample_start.sh
 }
 configure_smart_traffic_intersection_agent () 
 { 
@@ -4632,6 +4615,7 @@ debian_90_install_loitering_detection ()
     if verify_loitering_detection && [[ " $* " != *" --reinstall "* ]]; then
         echo "Loitering detection is already installed. Skipping";
     else
+        ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 280;
         ensure_git_export "$workspace" $version $repository metro-vision-ai-app-recipe;
         cd "$workspace/metro-vision-ai-app-recipe";
@@ -4640,7 +4624,7 @@ debian_90_install_loitering_detection ()
         verify_loitering_detection;
     fi;
     local device=$(ensure_select_device "$@");
-    configure_loitering_detection_device "$device";
+    echo "$device" > "$workspace"/.device;
     echo "@@HIGHLIGHT workspace: $workspace";
     echo "@@HIGHLIGHT $installer_name start [--gpu|npu|cpu]";
     echo "@@HIGHLIGHT $installer_name remove"
@@ -4776,7 +4760,7 @@ EOF
         verify_pallet_defect_detection;
     fi;
     local device=$(ensure_select_device "$@");
-    configure_pallet_defect_detection_device "_$device";
+    echo "_$device" > "$workspace"/.device;
     echo "@@HIGHLIGHT workspace: $workspace";
     echo "@@HIGHLIGHT $installer_name install [--gpu|npu|cpu]";
     echo "@@HIGHLIGHT $installer_name start [--gpu|npu|cpu]";
@@ -4809,7 +4793,7 @@ EOF
         verify_pcb_anomaly_detection;
     fi;
     local device=$(ensure_select_device "$@");
-    configure_pcb_anomaly_detection_device "_$device";
+    echo "_$device" > "$workspace"/.device;
     echo "@@HIGHLIGHT workspace: $workspace";
     echo "@@HIGHLIGHT $installer_name install [--gpu|--npu|--cpu]";
     echo "@@HIGHLIGHT $installer_name start [--gpu|--npu|--cpu]";
@@ -5686,17 +5670,27 @@ debian_90_start_live_video_search ()
 }
 debian_90_start_loitering_detection () 
 { 
-    ensure_ports_open "80 443" debian_90_stop_loitering_detection;
     configure_loitering_detection;
+    ensure_ports_open "${used_ports[*]}" debian_90_stop_loitering_detection;
     local device=$(ensure_select_device "$@");
-    [[ " ${*,,} " != *" --$device "* ]] || configure_loitering_detection_device "$device";
+    [[ " ${*,,} " != *" --$device "* ]] || echo "$device" > "$workspace"/.device;
     cd "$workspace"/metro-vision-ai-app-recipe;
-    docker compose -f compose-without-scenescape.yml up -d --wait;
+    docker compose -f compose-without-scenescape.yml up -d;
+    local start_time=$SECONDS elapsed;
+    while true; do
+        elapsed=$(( SECONDS - start_time ));
+        echo "Waiting...elapsed $elapsed seconds" 1>&2;
+        if [[ $elapsed -gt $wait_timeout ]]; then
+            echo "Timeout waiting for pipelines up." 1>&2;
+            return 3;
+        fi;
+        curl -k -s https://localhost/api/pipelines/status -H "accept: application/json" > /dev/null && break || sleep 5;
+    done;
     echo "@@HIGHLIGHT UI: http://$(ensure_ip)";
     echo "@@HIGHLIGHT Grafana AUTH: admin/admin";
     echo "@@HIGHLIGHT $installer_name start [--gpu|npu|cpu]";
     echo "@@HIGHLIGHT $installer_name stop|remove";
-    ./sample_start.sh && ./sample_status.sh
+    ./sample_start.sh $(< ../.device) && ./sample_status.sh
 }
 debian_90_start_loss_prevention () 
 { 
@@ -5801,26 +5795,62 @@ debian_90_start_pallet_defect_detection ()
     configure_pallet_defect_detection;
     ensure_ports_open "${used_ports[*]}" debian_90_stop_pallet_defect_detection;
     local device=$(ensure_select_device "$@");
-    [[ " ${*,,} " != *" --$device "* ]] || configure_pallet_defect_detection_device "_$device";
+    [[ " ${*,,} " != *" --$device "* ]] || echo "_$device" > "$workspace"/.device;
     cd "$workspace"/industrial-edge-insights-vision;
-    docker compose up -d --wait;
+    docker compose up -d;
+    local start_time=$SECONDS elapsed;
+    while true; do
+        elapsed=$(( SECONDS - start_time ));
+        echo "Waiting...elapsed $elapsed seconds" 1>&2;
+        if [[ $elapsed -gt $wait_timeout ]]; then
+            echo "Timeout waiting for pipelines up." 1>&2;
+            return 3;
+        fi;
+        curl -k -s https://localhost/api/pipelines/status -H "accept: application/json" > /dev/null && break || sleep 5;
+    done;
     echo "@@HIGHLIGHT URL: http://$(ensure_ip):${used_ports[0]}";
     echo "@@HIGHLIGHT $installer_name start [--gpu|npu|cpu]";
     echo "@@HIGHLIGHT $installer_name remove";
-    ./sample_start.sh && ./sample_status.sh
+    local pipeline="pallet_defect_detection$(< ../.device)";
+    ./sample_start.sh -p ${pipeline%_cpu} && { 
+        local status;
+        while true; do
+            status="$(./sample_status.sh)" || break;
+            printf "%s\n" "$status" | grep frame_fps;
+            case "$status" in 
+                *COMPLETE* | *ERROR*)
+                    break
+                ;;
+            esac;
+            sleep 5;
+        done
+    }
 }
 debian_90_start_pcb_anomaly_detection () 
 { 
     configure_pcb_anomaly_detection;
     ensure_ports_open "${used_ports[*]}" debian_90_stop_pcb_anomaly_detection;
     local device=$(ensure_select_device "$@");
-    [[ " ${*,,} " != *" --$device "* ]] || configure_pcb_anomaly_detection_device "_$device";
+    [[ " ${*,,} " != *" --$device "* ]] || echo "_$device" > "$workspace"/.device;
     cd "$workspace"/industrial-edge-insights-vision;
     docker compose up -d --wait;
     echo "@@HIGHLIGHT URL: http://$(ensure_ip):${used_ports[0]}";
     echo "@@HIGHLIGHT $installer_name start [--gpu|--npu|--cpu]";
     echo "@@HIGHLIGHT $installer_name stop|remove";
-    ./sample_start.sh && ./sample_status.sh
+    local pipeline="pcb_anomaly_detection$(< ../.device)";
+    ./sample_start.sh -p ${pipeline%_cpu} && { 
+        local status;
+        while true; do
+            status="$(./sample_status.sh)" || break;
+            printf "%s\n" "$status" | grep frame_fps;
+            case "$status" in 
+                *COMPLETE* | *ERROR*)
+                    break
+                ;;
+            esac;
+            sleep 5;
+        done
+    }
 }
 debian_90_start_physical_ai_studio () 
 { 
