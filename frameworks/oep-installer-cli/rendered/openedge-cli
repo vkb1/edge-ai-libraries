@@ -2140,6 +2140,13 @@ configure_humanoid_imitation_learning ()
     humanoid_base_image=robotics-ai-suite:humanoid-imitation-learning-base;
     humanoid_sample_image=robotics-ai-suite:humanoid-imitation-learning-$humanoid_sample
 }
+configure_image_based_video_search () 
+{ 
+    workspace="$(ensure_project_path)/image-based-video-search";
+    version=release-2026.2.0;
+    repository="https://github.com/open-edge-platform/metro-ai-suite.git";
+    used_ports=(443 80 8554)
+}
 configure_kernel_module_essential () 
 { 
     local ver="";
@@ -4529,6 +4536,42 @@ debian_90_install_humanoid_imitation_learning ()
     echo "@@HIGHLIGHT $installer_name install [--pi05-rtc-ov]";
     echo "@@HIGHLIGHT $installer_name remove"
 }
+debian_90_install_image_based_video_search () 
+{ 
+    configure_image_based_video_search "$@";
+    if verify_image_based_video_search && [[ " $* " != *" --reinstall "* ]]; then
+        echo "Video Search and Summarization is already installed. Skipping...";
+    else
+        ensure_ports_open "${used_ports[*]}" return 3;
+        ensure_disk_size 8000;
+        ensure_git_export "$workspace" $version $repository image-based-video-search;
+        cd "$workspace"/image-based-video-search/src/dlstreamer-pipeline-server;
+        MODELS_PATH="$(pwd)/models";
+        mkdir -p "$MODELS_PATH";
+        docker run --rm --user=root -e http_proxy -e https_proxy -e no_proxy -v "$MODELS_PATH:/output" openvino/ubuntu24_dev:2024.6.0 bash -c "omz_downloader --name resnet-50-pytorch --output_dir models &&         omz_converter --name resnet-50-pytorch --download_dir models --output_dir models &&         cp -r ./models/public/resnet-50-pytorch /output && chown -R $(id -u):$(id -g) /output";
+        docker run --rm --user=root -e http_proxy -e https_proxy -e no_proxy -v "$MODELS_PATH:/output" intel/dlstreamer:2026.2.0-ubuntu24 bash -c "$(cat <<EOF
+mkdir -p src/dlstreamer-pipeline-server/models/public
+export MODELS_PATH=/output
+chmod +x /home/dlstreamer/dlstreamer/samples/download_public_models.sh
+if [ ! -e "src/dlstreamer-pipeline-server/models/public/yolo11s/FP16/yolo11s.xml" ]; then
+  for attempt in {1..3}; do
+    echo "Attempt $attempt: Running model download and quantization..."
+    if /home/dlstreamer/dlstreamer/samples/download_public_models.sh yolo11s coco128; then
+      echo "Model download and quantization successful!"
+      break
+    else
+      echo "Download attempt $attempt failed. Retrying..."
+      sleep 2
+    fi
+  done
+fi
+EOF
+)";
+        verify_image_based_video_search;
+    fi;
+    echo "@@HIGHLIGHT workspace: $workspace";
+    echo "@@HIGHLIGHT start|stop|remove"
+}
 debian_90_install_live_video_alert_agent () 
 { 
     configure_live_video_alert_agent;
@@ -5233,6 +5276,10 @@ debian_90_profile_humanoid_imitation_learning ()
 { 
     echo "git curl edge_base docker"
 }
+debian_90_profile_image_based_video_search () 
+{ 
+    echo "git curl edge_base docker"
+}
 debian_90_profile_live_video_alert_agent () 
 { 
     echo "git curl gawk jq edge_base docker"
@@ -5389,6 +5436,11 @@ debian_90_remove_humanoid_imitation_learning ()
         images+=("robotics-ai-suite:humanoid-imitation-learning-$sample");
     done;
     docker image rm -f "${images[@]}" > /dev/null 2>&1 || true;
+    ensure_rm "$workspace"
+}
+debian_90_remove_image_based_video_search () 
+{ 
+    debian_90_stop_image_based_video_search "$@";
     ensure_rm "$workspace"
 }
 debian_90_remove_live_video_alert_agent () 
@@ -5615,6 +5667,15 @@ debian_90_start_handheld_multi_modal ()
     cd "$workspace"/federal-and-aerospace-ai-suite/handheld-multi-modal;
     make deploy;
     echo "@@HIGHLIGHT URL: https://$(ensure_ip)"
+}
+debian_90_start_image_based_video_search () 
+{ 
+    configure_image_based_video_search "$@";
+    ensure_ports_open "${used_ports[*]}" debian_90_stop_image_based_video_search "$@";
+    cd "$workspace"/image-based-video-search;
+    docker compose up -d;
+    echo "@@HIGHLIGHT URL: https://$(ensure_ip):${used_ports[0]}";
+    echo "@@HIGHLIGHT stop|remove"
 }
 debian_90_start_live_video_alert_agent () 
 { 
@@ -6147,6 +6208,13 @@ debian_90_stop_handheld_multi_modal ()
     cd "$workspace"/federal-and-aerospace-ai-suite/handheld-multi-modal;
     make down
 }
+debian_90_stop_image_based_video_search () 
+{ 
+    configure_image_based_video_search "$@";
+    cd "$workspace"/image-based-video-search && { 
+        docker compose down -v --remove-orphans
+    } || true
+}
 debian_90_stop_live_video_alert_agent () 
 { 
     configure_live_video_alert_agent;
@@ -6247,7 +6315,10 @@ debian_90_stop_smart_intersection ()
 debian_90_stop_smart_kiosk_assistant () 
 { 
     configure_smart_kiosk_assistant;
-    cd "$workspace"/smart-kiosk-assistant && make down || true
+    cd "$workspace"/smart-kiosk-assistant && { 
+        make down || true;
+        docker volume rm -f smart-kiosk-assistant_identity_data
+    } || true
 }
 debian_90_stop_smart_nvr () 
 { 
@@ -6349,7 +6420,7 @@ debian_99_profile_manufacturing_ai_suite ()
 debian_99_profile_metro_ai_suite () 
 { 
     [ "$1" = "start" ] || { 
-        local modules=(vippet smart_intersection smart_parking loitering_detection live_video_captioning live_video_captioning_rag live_video_search live_video_alert_agent video_search_and_summarization agentic_predictive_maintenance_pipeline agentic_smart_community smart_traffic_intersection_agent video_processing_for_nvr);
+        local modules=(vippet smart_intersection smart_parking loitering_detection live_video_captioning live_video_captioning_rag live_video_search live_video_alert_agent video_search_and_summarization agentic_predictive_maintenance_pipeline agentic_smart_community smart_traffic_intersection_agent video_processing_for_nvr image_based_video_search);
         echo "${modules[*]}"
     }
 }
@@ -7384,6 +7455,17 @@ verify_humanoid_imitation_learning_workspace ()
 { 
     local head;
     head="$(git -C "$workspace" rev-parse -q --verify HEAD 2> /dev/null)" && [ "$head" = "$(git -C "$workspace" rev-parse -q --verify "$version^{commit}" 2> /dev/null)" ] && [ -r "$container_dir/dockerfiles/humanoid-imitation-learning/base.dockerfile" ]
+}
+verify_image_based_video_search () 
+{ 
+    local files_to_check=(resnet-50-pytorch/FP32/resnet-50-pytorch.bin resnet-50-pytorch/FP16/resnet-50-pytorch.bin public/yolo11s/INT8/yolo11s.bin public/yolo11s/FP32/yolo11s.bin public/yolo11s/FP16/yolo11s.bin);
+    for f in "${files_to_check[@]}";
+    do
+        [ -e "$workspace"/image-based-video-search/src/dlstreamer-pipeline-server/models/$f ] || { 
+            echo "Missing ${f%/*}" 1>&2;
+            return 1
+        };
+    done
 }
 verify_libyang () 
 { 
