@@ -2945,6 +2945,7 @@ configure_visual_search_question_and_answering ()
     version=release-2026.2.0;
     repository="https://github.com/open-edge-platform/metro-ai-suite.git";
     used_ports=(17580 19530 9764 9990 6008 9777);
+    demo_dataset="https://data.vision.ee.ethz.ch/csergi/share/davis/DAVIS-2017-test-dev-480p.zip";
     export EMBEDDING_MODEL_NAME=CLIP/clip-vit-h-14;
     export VLM_MODEL_NAME=Qwen/Qwen2.5-VL-7B-Instruct;
     export DOCKER_VOLUME_DIRECTORY="$workspace";
@@ -3516,6 +3517,7 @@ debian_30_install_docker_io ()
                 ensure_apt install -y docker-buildx-plugin docker-compose-plugin;
             else
                 ensure_prop set installed/docker_io/owned true;
+                ensure_disk_size 800;
                 echo "Remove legacy installation";
                 debian_30_remove_docker_io "$@";
                 ensure_sudo mkdir -p /etc/systemd/system/docker.service.d;
@@ -4114,6 +4116,7 @@ debian_70_install_openvino ()
     if verify_openvino && [[ " $* " != *" --reinstall "* ]]; then
         echo "openvino-${version} already installed. Skipping";
     else
+        ensure_disk_size 1500;
         debian_70_remove_openvino "$@";
         ensure_apt_key $key_file $key_url --dearmor;
         ensure_apt_source $apt_file "$apt_entry";
@@ -4244,6 +4247,7 @@ debian_75_install_dlstreamer ()
     if verify_dlstreamer && [[ " $* " != *" --reinstall "* ]]; then
         echo "dlstreamer-${version} already installed. Skipping";
     else
+        ensure_disk_size 15000;
         debian_75_remove_dlstreamer "$@";
         ensure_apt_key $key_file $key_url --dearmor;
         ensure_apt_source $list_file "$deb_entry";
@@ -4314,7 +4318,7 @@ debian_80_install_anomalib ()
     if verify_anomalib && [[ " $* " != *" --reinstall "* ]]; then
         echo "Anomalib already installed. Skipping";
     else
-        ensure_disk_size 6000;
+        ensure_disk_size 15000;
         mkdir -p "$workspace";
         cd "$workspace";
         python3 -m venv .venv;
@@ -4412,6 +4416,7 @@ debian_85_install_esq ()
     if uv tool list 2> /dev/null | grep -q -E "^esq " && [[ " $* " != *" --reinstall "* ]]; then
         echo "Esq is already installed. Skipping...";
     else
+        ensure_disk_size 25000;
         curl -fsSL https://raw.githubusercontent.com/open-edge-platform/edge-system-qualification/refs/heads/main/scripts/system-setup.sh | ensure_sudo bash -s -- -f || true;
         curl -fsSL https://raw.githubusercontent.com/open-edge-platform/edge-system-qualification/refs/heads/main/scripts/system-setup-advanced.sh | ensure_sudo bash -s -- -f || true;
         uv tool install --force --refresh git+https://github.com/open-edge-platform/edge-system-qualification.git@main;
@@ -4456,7 +4461,7 @@ debian_85_remove_esq ()
     configure_uv;
     configure_esq;
     esq clean --all || true;
-    uv tool uninstall --force esq || true;
+    uv tool uninstall esq || true;
     ensure_rm "$workspace"
 }
 debian_85_remove_video_search_and_summarization () 
@@ -4503,7 +4508,7 @@ debian_90_install_agentic_predictive_maintenance_pipeline ()
         echo "Agentic Predictive Maintenance Pipeline already installed. Skipping" 1>&2;
     else
         ensure_ports_open "${used_ports[*]}" return 3;
-        ensure_disk_size 60;
+        ensure_disk_size 15000;
         ensure_git_export "$workspace" "$version" "$repository" agentic-predictive-maintenance-pipeline;
         cd "$workspace"/agentic-predictive-maintenance-pipeline/apps/pipeline-defect-detection;
         sed -i "s|^HOST_IP=.*|HOST_IP=$(ensure_ip)|" .env_pipeline-defect-detection;
@@ -4526,7 +4531,7 @@ debian_90_install_agentic_smart_community ()
         echo "Agentic Smart Community already installed. Skipping" 1>&2;
     else
         ensure_ports_open "${used_ports[*]}" return 3;
-        ensure_disk_size 128000;
+        ensure_disk_size 2000;
         ensure_ram_size 65011712 33554432;
         ensure_git_export "$workspace" "$version" "$repository" agentic-smart-community;
         mkdir -p "${mlvu_workspace%/*}";
@@ -4569,7 +4574,7 @@ debian_90_install_dine_in ()
         echo "Order accuracy is already installed. Skipping";
     else
         ensure_ports_open "${ports[*]}" return 3;
-        ensure_disk_size 10000;
+        ensure_disk_size 45000;
         ensure_git_clone "$workspace" $version $repository;
         cd "$workspace"/dine-in;
         make init-env;
@@ -4593,7 +4598,7 @@ debian_90_install_geti ()
         echo "Geti already installed. Skipping.";
     else
         ensure_ports_open "$port" return 3;
-        ensure_disk_size 40000;
+        ensure_disk_size 20000;
         ensure_ram_size 16777216;
         docker pull $image_name;
     fi
@@ -4605,7 +4610,7 @@ debian_90_install_handheld_multi_modal ()
         echo "handheld_multi_modal already installed. Skipping";
     else
         ensure_ports_open "${used_ports[*]}" return 3;
-        ensure_disk_size 300;
+        ensure_disk_size 45000;
         ensure_git_clone "$workspace" $version $repository handheld-multi-modal;
         cd "$workspace"/handheld-multi-modal;
         make setup;
@@ -4694,7 +4699,7 @@ debian_90_install_live_video_alert_agent ()
         echo "Live Video Alert Agent is already installed. Skipping";
     else
         ensure_ports_open "${used_ports[*]}" return 3;
-        ensure_disk_size 64000;
+        ensure_disk_size 15000;
         ensure_git_clone "$workspace" $version $repository live-video-analysis/live-video-alert-agent;
         verify_live_video_alert_agent;
     fi;
@@ -4711,7 +4716,7 @@ debian_90_install_live_video_captioning ()
         echo "Live Video Captioning is already installed. Skipping";
     else
         ensure_ports_open "${used_ports[*]}" return 3;
-        ensure_disk_size 64000;
+        ensure_disk_size 10000;
         ensure_git_clone "$workspace" $version $repository live-video-analysis/live-video-captioning;
         export -n socks_server ftp_proxy;
         cd "$workspace/live-video-analysis/live-video-captioning";
@@ -4734,7 +4739,7 @@ debian_90_install_live_video_captioning_rag ()
         echo "Live Video Captioning RAG is already installed. Skipping";
     else
         ensure_ports_open "${used_ports[*]}" return 3;
-        ensure_disk_size 64000;
+        ensure_disk_size 20000;
         ensure_git_clone "$workspace" $version $repository live-video-analysis/live-video-captioning live-video-analysis/live-video-captioning-rag;
         export -n socks_server ftp_proxy;
         cd "$workspace/live-video-analysis/live-video-captioning-rag";
@@ -4758,7 +4763,7 @@ debian_90_install_live_video_search ()
         echo "Live Video Search is already installed. Skipping";
     else
         ensure_ports_open "${used_ports[*]}" return 3;
-        ensure_disk_size 64000;
+        ensure_disk_size 25000;
         ensure_git_clone "$workspace" $version $repository live-video-analysis/live-video-search;
         verify_live_video_search;
     fi;
@@ -4774,7 +4779,7 @@ debian_90_install_loitering_detection ()
         echo "Loitering detection is already installed. Skipping";
     else
         ensure_ports_open "${used_ports[*]}" return 3;
-        ensure_disk_size 280;
+        ensure_disk_size 10000;
         ensure_git_export "$workspace" $version $repository metro-vision-ai-app-recipe;
         cd "$workspace/metro-vision-ai-app-recipe";
         sed -i 's|curl |curl -f |' loitering-detection/install.sh;
@@ -4793,7 +4798,7 @@ debian_90_install_loss_prevention ()
     if verify_loss_prevention && [[ " $* " != *" --reinstall "* ]]; then
         echo "Loss prevention is already installed. Skipping";
     else
-        ensure_disk_size 300;
+        ensure_disk_size 15000;
         ensure_git_clone "$workspace" $version $repository;
         pushd "$workspace" > /dev/null;
         cat > src/.env <<EOF
@@ -4841,7 +4846,7 @@ debian_90_install_multimodal_weld_defect_detection ()
         echo "Multimodal weld defect detection is already installed. Skipping";
     else
         ensure_ports_open "${used_ports[*]}" return 3;
-        ensure_disk_size 64000;
+        ensure_disk_size 15000;
         ensure_ram_size 16777216;
         ensure_git_export "$workspace" "$version" "$repository" industrial-edge-insights-multimodal;
         cd "$workspace"/industrial-edge-insights-multimodal;
@@ -4868,7 +4873,7 @@ debian_90_install_nicu_warmer ()
         echo "NICU Warmer is already installed. Skipping" 1>&2;
     else
         ensure_ports_open "${used_ports[*]}" return 3;
-        ensure_disk_size 160;
+        ensure_disk_size 15000;
         ensure_git_clone "$workspace" $version $repository NICU-Warmer;
         cd "$workspace"/NICU-Warmer;
         sed -i 's|decodebin3 ! .*|decodebin3|' configs/res/all-gpu.env;
@@ -4898,7 +4903,7 @@ debian_90_install_pallet_defect_detection ()
         echo "Pallet defect detection is already installed. Skipping";
     else
         ensure_ports_open "${used_ports[*]}" return 3;
-        ensure_disk_size 50;
+        ensure_disk_size 10000;
         ensure_git_export "$workspace" $version $repository industrial-edge-insights-vision;
         cd "$workspace"/industrial-edge-insights-vision;
         cat > .env <<EOF
@@ -4931,7 +4936,7 @@ debian_90_install_pcb_anomaly_detection ()
         echo "PCB anomaly detection is already installed. Skipping";
     else
         ensure_ports_open "${used_ports[*]}" return 3;
-        ensure_disk_size 60;
+        ensure_disk_size 10000;
         ensure_git_export "$workspace" $version $repository industrial-edge-insights-vision;
         cd "$workspace/industrial-edge-insights-vision";
         cat > .env <<EOF
@@ -5337,7 +5342,14 @@ debian_90_install_visual_search_question_and_answering ()
         cd "$workspace"/visual-search-question-and-answering/deployment/docker-compose;
         sed -i -e "s|^host_ip=.*|host_ip=$(ensure_ip)|" -e "s|^HOST_IP=.*|HOST_IP=$(ensure_ip)|" env.sh;
         sed -i "s|^export HOST_DATA_PATH=.*|export HOST_DATA_PATH=\"$HOST_DATA_PATH\"|" env.sh;
+        echo "Fetch $(basename "$demo_dataset")...";
         mkdir -p "$HOST_DATA_PATH";
+        ensure_fetch "$demo_dataset" "$HOST_DATA_PATH"/$(basename "$demo_dataset");
+        docker run --rm --group-add $(id -g) -v "${HOST_DATA_PATH}":/home/user/data:rw ${REGISTRY}dataprep-visualdata-milvus:${TAG} python example/example_utils.py -d DAVIS || { 
+            echo "failed to process demo dataset" 1>&2;
+            return 3
+        };
+        ensure_rm "$HOST_DATA_PATH"/$(basename "$demo_dataset");
         verify_visual_search_question_and_answering;
     fi;
     local device=$(ensure_select_device "$@");
@@ -5486,7 +5498,7 @@ debian_90_profile_smart_intersection ()
 }
 debian_90_profile_smart_kiosk_assistant () 
 { 
-    echo "docker_io make edge_base"
+    echo "docker_io make edge_base python3_venv"
 }
 debian_90_profile_smart_nvr () 
 { 
@@ -5522,7 +5534,7 @@ debian_90_profile_vippet ()
 }
 debian_90_profile_visual_search_question_and_answering () 
 { 
-    echo "git curl gawk python3_venv edge_base docker_io"
+    echo "git curl gawk python3_venv edge_base docker_io unzip"
 }
 debian_90_profile_wind_turbine_anomaly_detection () 
 { 
@@ -6260,16 +6272,6 @@ debian_90_start_visual_search_question_and_answering ()
     docker compose -f compose_milvus.yaml up -d;
     echo "@@HIGHLIGHT URL: http://$(ensure_ip):${used_ports[0]}";
     echo "@@HIGHLIGHT $installer_name stop|remove";
-    if [ ! -e "$HOST_DATA_PATH"/DAVIS/subset ]; then
-        echo "Fetching demo dataset";
-        local cids=($(docker ps -a --filter "status=running" -q | xargs -r docker inspect --format '{{.Config.Image}} {{.Id}}' | grep "dataprep-visualdata-milvus" | awk '{print $2}'));
-        [ "${#cids[*]}" -gt 0 ] || { 
-            echo "No milvus containers found" 1>&2;
-            return 1
-        };
-        docker exec ${cids[0]} python example/example_utils.py -d DAVIS;
-        [ -d "$HOST_DATA_PATH"/DAVIS/subset ];
-    fi;
     echo "@@HIGHLIGHT dataset: $HOST_DATA_PATH/DAVIS/subset"
 }
 debian_90_start_wind_turbine_anomaly_detection () 
@@ -6358,7 +6360,7 @@ debian_90_stop_agentic_smart_community ()
 debian_90_stop_dine_in () 
 { 
     configure_dine_in "$@";
-    cd "$workspace"/dine-in && make down || true
+    cd "$workspace"/dine-in && make clean || true
 }
 debian_90_stop_geti () 
 { 
@@ -6516,7 +6518,7 @@ debian_90_stop_smart_traffic_intersection_agent ()
 debian_90_stop_take_away () 
 { 
     configure_take_away "$@";
-    cd "$workspace"/take-away && make down || true
+    cd "$workspace"/take-away && make clean || true
 }
 debian_90_stop_uav_mission_compute_sdk () 
 { 
@@ -6544,7 +6546,11 @@ debian_90_stop_vippet ()
 debian_90_stop_visual_search_question_and_answering () 
 { 
     configure_visual_search_question_and_answering "$@";
-    cd "$workspace"/visual-search-question-and-answering/deployment/docker-compose && . ./env.sh && docker compose -f compose_milvus.yaml down -v --remove-orphans || true
+    cd "$workspace"/visual-search-question-and-answering/deployment/docker-compose && { 
+        . ./env.sh || true;
+        docker compose -f compose_milvus.yaml down -v --remove-orphans
+    } || true;
+    docker volume rm -f ov-models || true
 }
 debian_90_stop_wind_turbine_anomaly_detection () 
 { 
@@ -7921,7 +7927,14 @@ verify_vippet ()
 }
 verify_visual_search_question_and_answering () 
 { 
-    [ -r "$workspace" ]
+    [ -r "$workspace" ] || { 
+        echo "Missing $workspace" 1>&2;
+        return 1
+    };
+    [ -d "$HOST_DATA_PATH"/DAVIS/subset ] || { 
+        echo "Missing demo dataset" 1>&2;
+        return 1
+    }
 }
 verify_wind_turbine_anomaly_detection () 
 { 
