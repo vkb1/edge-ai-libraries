@@ -2894,7 +2894,6 @@ configure_video_search_and_summarization ()
     export OD_MODEL_NAME=yolov8l-worldv2;
     export TEXT_EMBEDDING_MODEL=Qwen/qwen3-embedding-0.6b;
     export OVMS_LLM_MODEL_NAME=meta-llama/Llama-3.2-3B-Instruct;
-    ensure_hf_token $VLM_MODEL_NAME $TEXT_EMBEDDING_MODEL $OVMS_LLM_MODEL_NAME;
     export PM_AUDIO_USE_FULL_TRANSCRIPT_SUMMARY=false;
     export MULTIMODAL_EMBEDDING_MODEL=CLIP/clip-vit-b-32;
     export FRAME_INTERVAL=15;
@@ -2913,10 +2912,7 @@ configure_video_search_and_summarization ()
     export DATAPREP_DETECTION_DEVICE=${device^^};
     export MME_EMBEDDING_DEVICE=${device^^};
     export VLM_TARGET_DEVICE=${device^^};
-    export HUGGINGFACE_TOKEN=$HF_TOKEN;
-    export HF_TOKEN=$HF_TOKEN;
     export HF_HUB_CACHE="$workspace"/sample-applications/video-search-and-summarization/.cache;
-    export GATED_MODEL=$([ -n "$HF_TOKEN" ] && echo true || echo false);
     export LLM_TARGET_DEVICE=${device^^};
     export PM_MULTI_FRAME_COUNT=34;
     export ENABLE_EMBEDDING_GPU=$([ "$device" = "gpu" ] && echo true || echo false);
@@ -2930,6 +2926,12 @@ configure_video_search_and_summarization ()
     export RABBITMQ_PASSWORD=$(cat /dev/random | tr -dc a-z | head -c 5)$(cat /dev/random | tr -dc 0-9 | head -c 5);
     export REGISTRY_URL=intel;
     export TAG=latest
+}
+configure_video_search_and_summarization_gated () 
+{ 
+    ensure_hf_token $VLM_MODEL_NAME $TEXT_EMBEDDING_MODEL $OVMS_LLM_MODEL_NAME;
+    export HUGGINGFACE_TOKEN="$HF_TOKEN";
+    export GATED_MODEL=$([ -n "$HF_TOKEN" ] && echo true || echo false)
 }
 configure_vippet () 
 { 
@@ -4414,9 +4416,10 @@ debian_85_install_video_search_and_summarization ()
     if verify_video_search_and_summarization && [[ " $* " != *" --reinstall "* ]]; then
         echo "Video Search and Summarization is already installed. Skipping...";
     else
-        ensure_disk_size 8000;
         ensure_ports_open "${used_ports[*]}" return 3;
+        ensure_disk_size 8000;
         ensure_git_export "$workspace" $version $repository sample-applications/video-search-and-summarization;
+        configure_video_search_and_summarization_gated;
         cd "$workspace"/sample-applications/video-search-and-summarization;
         sed -i "s|export HOST_IP=.*|export HOST_IP=$(ensure_ip)|" setup.sh;
         sed -i 's|FINAL_ARG=.*|FINAL_ARG="${FINAL_ARG:-up -d}"|' setup.sh;
@@ -4467,6 +4470,7 @@ debian_85_start_video_search_and_summarization ()
 { 
     configure_video_search_and_summarization "$@";
     ensure_ports_open "${used_ports[*]}" debian_85_stop_video_search_and_summarization $*;
+    configure_video_search_and_summarization_gated;
     cd "$workspace"/sample-applications/video-search-and-summarization;
     export FINAL_ARG=;
     . ./setup.sh --search-and-summary;
@@ -4475,7 +4479,7 @@ debian_85_start_video_search_and_summarization ()
 }
 debian_85_stop_video_search_and_summarization () 
 { 
-    configure_video_search_and_summarization "$@";
+    configure_video_search_and_summarization "$@" || true;
     cd "$workspace"/sample-applications/video-search-and-summarization && { 
         . ./setup.sh --stop || true;
         . ./setup.sh --clean-data
@@ -6876,17 +6880,8 @@ ensure_hf_token ()
 { 
     local models=($*);
     export HF_TOKEN;
-    if [ -z "$HF_TOKEN" ]; then
-        if [ -r "$HOME"/.cache/huggingface/token ]; then
-            export HF_TOKEN=$(< "$HOME"/.cache/huggingface/token);
-        else
-            if [ -r "$HOME"/.hf_token ]; then
-                export HF_TOKEN=$(< "$HOME"/.hf_token);
-            else
-                export HF_TOKEN=$(grep -m1 -F '"HF_TOKEN":' "$HOME"/.vscode/launch.json > /dev/null 2>&1 || true);
-            fi;
-        fi;
-    fi;
+    [ -n "$HF_TOKEN" ] || [ ! -r "$HOME"/.cache/huggingface/token ] || export HF_TOKEN="$(< "$HOME"/.cache/huggingface/token)";
+    [ -n "$HF_TOKEN" ] || [ ! -r "$HOME"/.vscode/launch.json ] || export HF_TOKEN="$(grep -m1 -F '"HF_TOKEN":' "$HOME"/.vscode/launch.json)";
     if ! ensure_hf_token_check_models "$@"; then
         [ -z "$HF_TOKEN" ] || { 
             echo "Invalid or unauthroized HF_TOKEN" 1>&2;
@@ -6909,6 +6904,11 @@ ensure_hf_token ()
             };
             export HF_TOKEN="$("$askpass_helper" 'HF_TOKEN:' | tr -d '\n')"
         } 9< "$rundir";
+        if [[ -n "$HF_TOKEN" && ! -e "$HOME"/.cache/huggingface/token ]]; then
+            mkdir -p "$HOME"/.cache/huggingface;
+            ( umask 0077;
+            echo "$HF_TOKEN" > "$HOME"/.cache/huggingface/token );
+        fi;
         ensure_hf_token_check_models "$@";
     fi
 }
