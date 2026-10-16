@@ -2986,6 +2986,10 @@ debian_05_install_pciutils ()
 { 
     ensure_apt_install_package pciutils
 }
+debian_05_remove_dmidecode () 
+{ 
+    ensure_apt_remove_package dmidecode
+}
 debian_05_sbom_curl () 
 { 
     ensure_sbom_format pkg-list curl ca-certificates
@@ -3139,10 +3143,6 @@ debian_15_install_libze1 ()
         rm -f "$deb";
     fi
 }
-debian_15_install_pipx () 
-{ 
-    ensure_apt_install_package pipx
-}
 debian_15_install_unzip () 
 { 
     ensure_apt_install_package unzip
@@ -3159,12 +3159,32 @@ debian_15_profile_libze1 ()
 { 
     echo "curl"
 }
+debian_15_remove_cpuid () 
+{ 
+    ensure_apt_remove_package cpuid
+}
+debian_15_remove_debconf_utils () 
+{ 
+    ensure_apt_remove_package debconf-utils
+}
 debian_15_remove_edge_pack () 
 { 
     dpkg -l | grep -q -F intel-edge- || { 
         configure_edge_pack "$@";
         ensure_sudo rm -f "$edge_pack_key_file" "$edge_pack_source_file" "$edge_pack_pref_file"
     }
+}
+debian_15_remove_jq () 
+{ 
+    ensure_apt_remove_package jq
+}
+debian_15_remove_unzip () 
+{ 
+    ensure_apt_remove_package unzip
+}
+debian_15_remove_yq () 
+{ 
+    ensure_apt_remove_package yq
 }
 debian_15_sbom_cpuid () 
 { 
@@ -3194,10 +3214,6 @@ debian_15_sbom_libze1 ()
 { 
     configure_libze1 "$@";
     ensure_sbom_format pkg-list "$libze1_deb"
-}
-debian_15_sbom_pipx () 
-{ 
-    ensure_sbom_format pkg-list pipx
 }
 debian_15_sbom_unzip () 
 { 
@@ -3230,7 +3246,7 @@ debian_20_group_edge_pack_npu ()
 debian_20_install_core_types () 
 { 
     if [ -e /etc/core-types ] && [[ " $* " != *" --reinstall "* ]]; then
-        echo "/etc/core-types exists. Skipping";
+        echo "/etc/core-types exists." 1>&2;
         return;
     fi;
     local script="https://raw.githubusercontent.com/open-edge-platform/edge-workloads-and-benchmarks/refs/heads/main/utils/obtain_cores.sh";
@@ -3243,7 +3259,7 @@ debian_20_install_edge_pack_base_realtime ()
 { 
     configure_edge_pack_base_realtime "$@";
     if ensure_apt_is_installed intel-edge-base-realtime=$version && [[ " $* " != *" --reinstall "* ]]; then
-        echo "intel-edge-base-realtime already installed. Skipping" 1>&2;
+        echo "intel-edge-base-realtime is installed." 1>&2;
     else
         local candidate;
         candidate="$(apt-cache policy intel-edge-base-realtime 2> /dev/null | awk '/Candidate:/{print $2}')";
@@ -3270,7 +3286,7 @@ debian_20_install_edge_pack_base_standard ()
 { 
     configure_edge_pack_base_standard "$@";
     if ensure_apt_is_installed intel-edge-base-standard=$version && [[ " $* " != *" --reinstall "* ]]; then
-        echo "intel-edge-base-standard already installed. Skipping" 1>&2;
+        echo "intel-edge-base-standard is installed." 1>&2;
     else
         ensure_prop set installed/edge_pack_base_standard/owned true;
         ensure_apt autoremove -y intel-edge-base-standard || true;
@@ -3284,7 +3300,7 @@ debian_20_install_edge_pack_graphics_core ()
 { 
     configure_edge_pack_graphics_core "$@";
     if ensure_apt_is_installed intel-edge-graphics-core=$version && [[ " $* " != *" --reinstall "* ]]; then
-        echo "intel-edge-graphics-core already installed. Skipping" 1>&2;
+        echo "intel-edge-graphics-core is installed." 1>&2;
     else
         ensure_prop set installed/edge_pack_graphics_core/owned true;
         debian_20_remove_edge_pack_graphics_core;
@@ -3298,7 +3314,7 @@ debian_20_install_edge_pack_graphics_display ()
 { 
     configure_edge_pack_graphics_display "$@";
     if ensure_apt_is_installed intel-edge-graphics-display=$version && [[ " $* " != *" --reinstall "* ]]; then
-        echo "intel-edge-graphics-display already installed. Skipping" 1>&2;
+        echo "intel-edge-graphics-display is installed." 1>&2;
     else
         ensure_prop set installed/edge_pack_graphics_display/owned true;
         debian_20_remove_edge_pack_graphics_display;
@@ -3312,7 +3328,7 @@ debian_20_install_edge_pack_media_core ()
 { 
     configure_edge_pack_media_core "$@";
     if ensure_apt_is_installed intel-edge-media-core=$version && [[ " $* " != *" --reinstall "* ]]; then
-        echo "intel-edge-media-core already installed. Skipping" 1>&2;
+        echo "intel-edge-media-core is installed." 1>&2;
     else
         ensure_prop set installed/edge_pack_media_core/owned true;
         ensure_apt autoremove -y intel-edge-media-core || true;
@@ -3323,7 +3339,7 @@ debian_20_install_edge_pack_npu ()
 { 
     configure_edge_pack_npu "$@";
     if ensure_apt_is_installed intel-edge-npu=$version && [[ " $* " != *" --reinstall "* ]]; then
-        echo "intel-edge-npu already installed. Skipping" 1>&2;
+        echo "intel-edge-npu is installed." 1>&2;
     else
         ensure_prop set installed/edge_pack_npu/owned true;
         ensure_apt autoremove -y intel-edge-npu || true;
@@ -3572,7 +3588,7 @@ debian_30_install_kernel_module_essential ()
     for p in ${install_pkgs[*]};
     do
         if ensure_apt_is_installed $p; then
-            echo "$p is installed. Skipping" 1>&2;
+            echo "$p is installed." 1>&2;
         else
             ensure_prop set installed/kernel_module_essential/owned_$p true;
             pkgs+=($p);
@@ -3611,23 +3627,13 @@ debian_30_install_sysbench ()
 { 
     ensure_apt_install_package sysbench
 }
-debian_30_install_uv () 
-{ 
-    configure_uv;
-    if uv --version 2> /dev/null && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Uv is already installed. Skipping...";
-    else
-        pipx install uv;
-        ensure_prop set installed/uv/owned true;
-    fi
-}
 debian_30_install_v4l_utils () 
 { 
     ensure_apt_install_package v4l-utils
 }
-debian_30_profile_uv () 
+debian_30_remove_cmake () 
 { 
-    echo "pipx"
+    ensure_apt_remove_package cmake
 }
 debian_30_remove_docker_io () 
 { 
@@ -3637,6 +3643,10 @@ debian_30_remove_docker_io ()
     ensure_apt purge -y docker docker-engine docker.io docker-ce docker-ce-cli docker-compose-plugin docker-compose-v2 docker-buildx-plugin docker-ce-rootless-extras docker-scan-plugin docker-doc docker-compose podman-docker containerd containerd.io runc || true;
     ensure_rm /etc/systemd/system/docker.service.d || true;
     ensure_sudo systemctl daemon-reload || true
+}
+debian_30_remove_git () 
+{ 
+    ensure_apt_remove_package git
 }
 debian_30_remove_kernel_module_essential () 
 { 
@@ -3649,10 +3659,29 @@ debian_30_remove_kernel_module_essential ()
     done;
     [ ${#pkgs[@]} -eq 0 ] || ensure_apt autoremove -y "${pkgs[@]}"
 }
-debian_30_remove_uv () 
+debian_30_remove_make () 
 { 
-    [ "$(ensure_prop get installed/uv/owned)" = "true" ] || return 0;
-    pipx uninstall uv
+    ensure_apt_remove_package make
+}
+debian_30_remove_msr_tools () 
+{ 
+    ensure_apt_remove_package msr-tools
+}
+debian_30_remove_rsync () 
+{ 
+    ensure_apt_remove_package rsync
+}
+debian_30_remove_stress_ng () 
+{ 
+    ensure_apt_remove_package stress-ng
+}
+debian_30_remove_sysbench () 
+{ 
+    ensure_apt_install_package sysbench
+}
+debian_30_remove_v4l_utils () 
+{ 
+    ensure_apt_remove_package v4l-utils
 }
 debian_30_sbom_chrony () 
 { 
@@ -3723,7 +3752,7 @@ debian_40_install_gpu_accel ()
 { 
     configure_gpu_accel "$@";
     if verify_gpu_accel && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Gpu drivers are already installed. Skipping...";
+        echo "Gpu drivers are installed." 1>&2;
     else
         ensure_prop set installed/gpu_accel/owned true;
         debian_40_remove_gpu_accel || true;
@@ -3740,7 +3769,7 @@ debian_40_install_libyang ()
 { 
     configure_libyang;
     if verify_libyang && [[ " $* " != *" --reinstall "* ]]; then
-        echo "libyang is installed. Skipping..." 1>&2;
+        echo "libyang is installed." 1>&2;
     else
         configure_kernel_module_essential_debian "$@";
         ensure_git_export "$workspace" "$version" "$repository";
@@ -3761,7 +3790,7 @@ debian_40_install_npu_accel ()
 { 
     configure_npu_accel "$@";
     if verify_npu_accel && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Npu drivers are already installed. Skipping...";
+        echo "Npu drivers are installed." 1>&2;
     else
         ensure_prop set installed/npu_accel/owned true;
         debian_40_remove_npu_accel "$@";
@@ -3787,7 +3816,7 @@ debian_40_install_pcm ()
 { 
     configure_pcm;
     if verify_pcm && [[ " $* " != *" --reinstall "* ]]; then
-        echo "pcm is installed. Skipping";
+        echo "pcm is installed." 1>&2;
     else
         configure_kernel_module_essential_debian "$@";
         ensure_git_export "$workspace" "$version" "$repository";
@@ -3872,11 +3901,95 @@ debian_40_sbom_software_properties_common ()
 { 
     ensure_sbom_format pkg-list software-properties-common
 }
+debian_45_install_cloud_image_utils () 
+{ 
+    ensure_apt_install_package cloud-image-utils
+}
+debian_45_install_libcap2_bin () 
+{ 
+    ensure_apt_install_package libcap2-bin
+}
+debian_45_install_memtester () 
+{ 
+    ensure_apt_install_package memtester
+}
+debian_45_install_ovmf () 
+{ 
+    ensure_apt_install_package ovmf
+}
+debian_45_install_pipx () 
+{ 
+    ensure_apt_install_package pipx
+}
+debian_45_install_qemu_system_x86 () 
+{ 
+    ensure_apt_install_package qemu-system-x86
+}
+debian_45_install_qemu_utils () 
+{ 
+    ensure_apt_install_package qemu-utils
+}
+debian_45_install_rt_tests () 
+{ 
+    ensure_apt_install_package rt-tests
+}
+debian_45_profile_pipx () 
+{ 
+    echo "python3_venv"
+}
+debian_45_remove_cloud_image_utils () 
+{ 
+    ensure_apt_remove_package cloud-image-utils
+}
+debian_45_remove_memtester () 
+{ 
+    ensure_apt_remove_package memtester
+}
+debian_45_remove_ovmf () 
+{ 
+    ensure_apt_remove_package ovmf
+}
+debian_45_remove_rt_tests () 
+{ 
+    ensure_apt_remove_package rt-tests
+}
+debian_45_sbom_cloud_image_utils () 
+{ 
+    ensure_sbom_format pkg-list cloud-image-utils
+}
+debian_45_sbom_libcap2_bin () 
+{ 
+    ensure_sbom_format pkg-list libcap2-bin
+}
+debian_45_sbom_memtester () 
+{ 
+    ensure_sbom_format pkg-list memtester
+}
+debian_45_sbom_ovmf () 
+{ 
+    ensure_sbom_format pkg-list ovmf
+}
+debian_45_sbom_pipx () 
+{ 
+    ensure_sbom_format pkg-list pipx
+}
+debian_45_sbom_qemu_system_x86 () 
+{ 
+    ensure_sbom_format pkg-list eqmu-system-x86
+}
+debian_45_sbom_qemu_utils () 
+{ 
+    ensure_sbom_format pkg-list qemu-utils
+}
+debian_45_sbom_rt_tests () 
+{ 
+    ensure_sbom_format pkg-list rt-tests
+}
 debian_50_install_ros2 () 
 { 
     configure_ros2;
     if verify_ros2 && [[ " $* " != *" --reinstall "* ]]; then
-        echo "ROS 2 $ros_distro is already installed. Skipping...";
+        echo "ROS 2 $ros_distro is installed." 1>&2;
     else
         configure_ros2_apt_source || return 1;
         ensure_prop set installed/ros2/owned true;
@@ -3894,10 +4007,24 @@ debian_50_install_ros2 ()
     echo "@@HIGHLIGHT ROS 2 $ros_distro @/opt/ros/$ros_distro";
     echo "@@HIGHLIGHT shell env @source /opt/ros/$ros_distro/setup.bash"
 }
+debian_50_install_uv () 
+{ 
+    configure_uv;
+    if uv --version 2> /dev/null && [[ " $* " != *" --reinstall "* ]]; then
+        echo "Uv is already installed. Skipping...";
+    else
+        ensure_prop set installed/uv/owned true;
+        pipx install uv;
+    fi
+}
 debian_50_profile_ros2 () 
 { 
     echo "curl gnupg git software_properties_common lsb_release";
     [[ " $* " = *" --realtime "* ]] || echo "edge_base"
+}
+debian_50_profile_uv () 
+{ 
+    echo "pipx"
 }
 debian_50_remove_ros2 () 
 { 
@@ -3911,6 +4038,11 @@ debian_50_remove_ros2 ()
         echo "ROS 2 already removed. Skipping";
     fi
 }
+debian_50_remove_uv () 
+{ 
+    [ "$(ensure_prop get installed/uv/owned)" = "true" ] || return 0;
+    pipx uninstall uv
+}
 debian_50_sbom_ros2 () 
 { 
     configure_ros2 "$@";
@@ -3921,7 +4053,7 @@ debian_55_install_realsense ()
 { 
     configure_realsense;
     if verify_realsense && [[ " $* " != *" --reinstall "* ]]; then
-        echo "RealSense SDK is already installed. Skipping...";
+        echo "RealSense SDK is installed." 1>&2;
     else
         ensure_prop set installed/realsense/owned true;
         ensure_sudo mkdir -p /etc/apt/keyrings;
@@ -3936,7 +4068,7 @@ debian_55_install_ros_openvino ()
 { 
     configure_ros_openvino;
     if verify_ros_openvino && [[ " $* " != *" --reinstall "* ]]; then
-        echo "ROS 2 OpenVINO toolkit is already installed. Skipping...";
+        echo "ROS 2 OpenVINO toolkit is installed." 1>&2;
     else
         ensure_prop set installed/ros_openvino/owned true;
         ensure_sudo mkdir -p "$(dirname "$amr_key_file")";
@@ -4046,7 +4178,7 @@ debian_60_install_edge_node_infrastructure_blueprint ()
         return 1;
     fi;
     if verify_edge_node_infrastructure_blueprint && [[ " $* " != *" --reinstall "* ]]; then
-        echo "edge_node_infrastructure_blueprint ($deployment) already installed. Skipping";
+        echo "edge_node_infrastructure_blueprint ($deployment) is installed." 1>&2;
     else
         [ "$deployment" = k3s ] || uninstall_k3s_edge_node_infrastructure_blueprint;
         ensure_git_clone "$workspace" $version $repository;
@@ -4073,7 +4205,7 @@ debian_70_install_edge_pack_media_ffmpeg ()
 { 
     configure_edge_pack_media_ffmpeg "$@";
     if ensure_apt_is_installed intel-edge-media-ffmpeg=$version && [[ " $* " != *" --reinstall "* ]]; then
-        echo "intel-edge-media-ffmpeg already installed. Skipping" 1>&2;
+        echo "intel-edge-media-ffmpeg is installed." 1>&2;
     else
         ensure_prop set installed/edge_pack_media_ffmpeg/owned true;
         ensure_apt autoremove -y intel-edge-media-ffmpeg || true;
@@ -4084,7 +4216,7 @@ debian_70_install_edge_pack_media_gst ()
 { 
     configure_edge_pack_media_gst "$@";
     if ensure_apt_is_installed intel-edge-media-gst=$version && [[ " $* " != *" --reinstall "* ]]; then
-        echo "intel-edge-media-gst already installed. Skipping" 1>&2;
+        echo "intel-edge-media-gst is installed." 1>&2;
     else
         ensure_prop set installed/edge_pack_media_gst/owned true;
         ensure_apt autoremove -y intel-edge-media-gst || true;
@@ -4099,7 +4231,7 @@ debian_70_install_mediamtx ()
 { 
     configure_mediamtx;
     if [ -x "$bin_path/mediamtx" ] && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Mediamtx already installed. Skipping" 1>&2;
+        echo "Mediamtx is installed." 1>&2;
     else
         ensure_fetch "$repository" - | ensure_sudo tar xz -C "$bin_path" mediamtx;
         [ -x "$bin_path/mediamtx" ];
@@ -4113,7 +4245,7 @@ debian_70_install_openvino ()
 { 
     configure_openvino $*;
     if verify_openvino && [[ " $* " != *" --reinstall "* ]]; then
-        echo "openvino-${version} already installed. Skipping";
+        echo "openvino-${version} is installed." 1>&2;
     else
         ensure_disk_size 1500;
         debian_70_remove_openvino "$@";
@@ -4142,7 +4274,7 @@ debian_70_install_time_confighub ()
 { 
     configure_time_confighub;
     if verify_pcm && [[ " $* " != *" --reinstall "* ]]; then
-        echo "pcm is installed. Skipping";
+        echo "Time-Confighub is installed." 1>&2;
     else
         configure_kernel_module_essential_debian "$@";
         ensure_git_export "$workspace" "$version" "$repository";
@@ -4184,9 +4316,17 @@ debian_70_remove_edge_pack_media_gst ()
     ensure_apt autoremove -y intel-edge-media-gst || true;
     debian_15_remove_edge_pack "$@" || true
 }
+debian_70_remove_ffmpeg () 
+{ 
+    ensure_apt_remove_package ffmpeg
+}
 debian_70_remove_mediamtx () 
 { 
     ensure_rm "$bin_path/mediamtx"
+}
+debian_70_remove_nodejs () 
+{ 
+    ensure_apt_remove_package nodejs
 }
 debian_70_remove_openvino () 
 { 
@@ -4244,7 +4384,7 @@ debian_75_install_dlstreamer ()
 { 
     configure_dlstreamer;
     if verify_dlstreamer && [[ " $* " != *" --reinstall "* ]]; then
-        echo "dlstreamer-${version} already installed. Skipping";
+        echo "dlstreamer-${version} is installed." 1>&2;
     else
         ensure_disk_size 15000;
         debian_75_remove_dlstreamer "$@";
@@ -4315,7 +4455,7 @@ debian_80_install_anomalib ()
 { 
     configure_anomalib $*;
     if verify_anomalib && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Anomalib already installed. Skipping";
+        echo "Anomalib is installed." 1>&2;
     else
         ensure_disk_size 15000;
         mkdir -p "$workspace";
@@ -4413,7 +4553,7 @@ debian_85_install_esq ()
 { 
     configure_uv;
     if uv tool list 2> /dev/null | grep -q -E "^esq " && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Esq is already installed. Skipping...";
+        echo "Esq is installed." 1>&2;
     else
         ensure_disk_size 25000;
         curl -fsSL https://raw.githubusercontent.com/open-edge-platform/edge-system-qualification/refs/heads/main/scripts/system-setup.sh | ensure_sudo bash -s -- -f || true;
@@ -4429,7 +4569,7 @@ debian_85_install_video_search_and_summarization ()
 { 
     configure_video_search_and_summarization "$@";
     if verify_video_search_and_summarization && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Video Search and Summarization is already installed. Skipping...";
+        echo "Video Search and Summarization is installed." 1>&2;
     else
         ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 8000;
@@ -4449,7 +4589,7 @@ debian_85_install_video_search_and_summarization ()
 }
 debian_85_profile_esq () 
 { 
-    echo "curl git libgl1 make docker_io uv edge_base openvino dlstreamer"
+    echo "curl git libgl1 make docker_io uv edge_base openvino dlstreamer libcap2_bin memtester qemu_system_x86 qemu_utils cloud_image_utils ovmf rt_tests"
 }
 debian_85_profile_video_search_and_summarization () 
 { 
@@ -4504,7 +4644,7 @@ debian_90_install_agentic_predictive_maintenance_pipeline ()
 { 
     configure_agentic_predictive_maintenance_pipeline;
     if verify_agentic_predictive_maintenance_pipeline && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Agentic Predictive Maintenance Pipeline already installed. Skipping" 1>&2;
+        echo "Agentic Predictive Maintenance Pipeline is installed." 1>&2;
     else
         ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 15000;
@@ -4527,7 +4667,7 @@ debian_90_install_agentic_smart_community ()
 { 
     configure_agentic_smart_community;
     if verify_agentic_smart_community && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Agentic Smart Community already installed. Skipping" 1>&2;
+        echo "Agentic Smart Community is installed." 1>&2;
     else
         ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 2000;
@@ -4544,7 +4684,7 @@ debian_90_install_autonomous_mobile_robot ()
 { 
     configure_autonomous_mobile_robot "$@";
     if verify_autonomous_mobile_robot "$@" && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Autonomous Mobile Robot is already installed. Skipping...";
+        echo "Autonomous Mobile Robot is installed." 1>&2;
     else
         ensure_prop set installed/autonomous_mobile_robot/owned true;
         ensure_disk_size $([[ "$amr_sdk_pkg" = *complete ]] && echo 40000 || echo 15000);
@@ -4570,7 +4710,7 @@ debian_90_install_dine_in ()
 { 
     configure_dine_in;
     if verify_dine_in && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Order accuracy is already installed. Skipping";
+        echo "Order accuracy is installed." 1>&2;
     else
         ensure_ports_open "${ports[*]}" return 3;
         ensure_disk_size 45000;
@@ -4594,7 +4734,7 @@ debian_90_install_geti ()
 { 
     configure_geti "$@";
     if verify_geti && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Geti already installed. Skipping.";
+        echo "Geti is installed." 1>&2;
     else
         ensure_ports_open "$port" return 3;
         ensure_disk_size 20000;
@@ -4606,7 +4746,7 @@ debian_90_install_handheld_multi_modal ()
 { 
     configure_handheld_multi_modal;
     if verify_handheld_multi_modal $* && [[ " $* " != *" --reinstall "* ]]; then
-        echo "handheld_multi_modal already installed. Skipping";
+        echo "handheld_multi_modal is installed." 1>&2;
     else
         ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 45000;
@@ -4626,7 +4766,7 @@ debian_90_install_humanoid_imitation_learning ()
 { 
     configure_humanoid_imitation_learning "$@";
     if verify_humanoid_imitation_learning "$@" && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Humanoid - Imitation Learning is already installed. Skipping...";
+        echo "Humanoid - Imitation Learning is installed." 1>&2;
     else
         ensure_disk_size 25000;
         if ! verify_humanoid_imitation_learning_workspace || [[ " $* " = *" --reinstall "* ]]; then
@@ -4659,7 +4799,7 @@ debian_90_install_image_based_video_search ()
 { 
     configure_image_based_video_search "$@";
     if verify_image_based_video_search && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Video Search and Summarization is already installed. Skipping...";
+        echo "Video Search and Summarization is installed." 1>&2;
     else
         ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 8000;
@@ -4695,7 +4835,7 @@ debian_90_install_live_video_alert_agent ()
 { 
     configure_live_video_alert_agent;
     if verify_live_video_alert_agent && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Live Video Alert Agent is already installed. Skipping";
+        echo "Live Video Alert Agent is installed." 1>&2;
     else
         ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 15000;
@@ -4712,7 +4852,7 @@ debian_90_install_live_video_captioning ()
 { 
     configure_live_video_captioning;
     if verify_live_video_captioning && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Live Video Captioning is already installed. Skipping";
+        echo "Live Video Captioning is installed." 1>&2;
     else
         ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 10000;
@@ -4735,7 +4875,7 @@ debian_90_install_live_video_captioning_rag ()
 { 
     configure_live_video_captioning_rag;
     if verify_live_video_captioning_rag && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Live Video Captioning RAG is already installed. Skipping";
+        echo "Live Video Captioning RAG is installed." 1>&2;
     else
         ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 20000;
@@ -4759,7 +4899,7 @@ debian_90_install_live_video_search ()
 { 
     configure_live_video_search;
     if verify_live_video_search && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Live Video Search is already installed. Skipping";
+        echo "Live Video Search is installed." 1>&2;
     else
         ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 25000;
@@ -4775,7 +4915,7 @@ debian_90_install_loitering_detection ()
 { 
     configure_loitering_detection;
     if verify_loitering_detection && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Loitering detection is already installed. Skipping";
+        echo "Loitering detection is installed." 1>&2;
     else
         ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 10000;
@@ -4795,7 +4935,7 @@ debian_90_install_loss_prevention ()
 { 
     configure_loss_prevention;
     if verify_loss_prevention && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Loss prevention is already installed. Skipping";
+        echo "Loss prevention is installed." 1>&2;
     else
         ensure_disk_size 15000;
         ensure_git_clone "$workspace" $version $repository;
@@ -4842,7 +4982,7 @@ debian_90_install_multimodal_weld_defect_detection ()
 { 
     configure_multimodal_weld_defect_detection;
     if verify_multimodal_weld_defect_detection && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Multimodal weld defect detection is already installed. Skipping";
+        echo "Multimodal weld defect detection is installed." 1>&2;
     else
         ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 15000;
@@ -4869,7 +5009,7 @@ debian_90_install_nicu_warmer ()
 { 
     configure_nicu_warmer $*;
     if verify_nicu_warmer && [[ " $* " != *" --reinstall "* ]]; then
-        echo "NICU Warmer is already installed. Skipping" 1>&2;
+        echo "NICU Warmer is installed." 1>&2;
     else
         ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 15000;
@@ -4899,7 +5039,7 @@ debian_90_install_pallet_defect_detection ()
 { 
     configure_pallet_defect_detection;
     if verify_pallet_defect_detection && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Pallet defect detection is already installed. Skipping";
+        echo "Pallet defect detection is installed." 1>&2;
     else
         ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 10000;
@@ -4932,7 +5072,7 @@ debian_90_install_pcb_anomaly_detection ()
 { 
     configure_pcb_anomaly_detection;
     if verify_pcb_anomaly_detection && [[ " $* " != *" --reinstall "* ]]; then
-        echo "PCB anomaly detection is already installed. Skipping";
+        echo "PCB anomaly detection is installed." 1>&2;
     else
         ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 10000;
@@ -4967,7 +5107,7 @@ debian_90_install_physical_ai_framework ()
     configure_physical_ai_framework_device "$@";
     configure_uv;
     if verify_physical_ai_framework "$@" && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Physical AI Framework is already installed. Skipping...";
+        echo "Physical AI Framework is installed." 1>&2;
     else
         ensure_disk_size 15000;
         ensure_rm "$paif_venv" "$paif_device_file";
@@ -5010,7 +5150,7 @@ debian_90_install_physical_ai_studio ()
     configure_physical_ai_studio_device "$@";
     configure_uv;
     if verify_physical_ai_studio "$@" && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Physical AI Studio is already installed. Skipping...";
+        echo "Physical AI Studio is installed." 1>&2;
     else
         ensure_disk_size 20000;
         debian_90_stop_physical_ai_studio "$@" || true;
@@ -5034,7 +5174,7 @@ debian_90_install_post_fusion ()
 { 
     configure_post_fusion "$@";
     if verify_post_fusion && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Sensor Fusion for Traffic Management - Post Fusion is installed. Skipping" 1>&2;
+        echo "Sensor Fusion for Traffic Management - Post Fusion is installed." 1>&2;
     else
         ensure_disk_size 300;
         ensure_git_export "$workspace" "$version" "$repository" sensor-fusion-for-traffic-management/post-fusion;
@@ -5059,7 +5199,7 @@ debian_90_install_real_time_scene_understanding ()
 { 
     configure_real_time_scene_understanding;
     if verify_real_time_scene_understanding && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Live Video Captioning is already installed. Skipping";
+        echo "Live Video Captioning is installed." 1>&2;
     else
         ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 64000;
@@ -5083,7 +5223,7 @@ debian_90_install_scenescape ()
 { 
     configure_scenescape;
     if verify_scenescape && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Scenescape already installed. Skipping" 1>&2;
+        echo "Scenescape is installed." 1>&2;
     else
         ensure_disk_size 300;
         ensure_git_export "$workspace" "$version" "$repository";
@@ -5097,7 +5237,7 @@ debian_90_install_smart_intersection ()
 { 
     configure_smart_intersection;
     if verify_smart_intersection && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Smart intersection is already installed. Skipping";
+        echo "Smart intersection is installed." 1>&2;
     else
         ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 1500;
@@ -5118,7 +5258,7 @@ debian_90_install_smart_kiosk_assistant ()
 { 
     configure_smart_kiosk_assistant;
     if verify_smart_kiosk_assistant && [[ " $* " = *" --reinstall "* ]]; then
-        echo "Smart Kiosk Assistant is installed. Skipping" 1>&2;
+        echo "Smart Kiosk Assistant is installed." 1>&2;
     else
         ensure_ports_open "${used_ports[*]}" debian_90_remove_smart_kiosk_assistant "$@";
         ensure_disk_size 300;
@@ -5146,7 +5286,7 @@ debian_90_install_smart_nvr ()
 { 
     configure_smart_nvr "$@";
     if verify_smart_nvr && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Smart NVR is already installed. Skipping" 1>&2;
+        echo "Smart NVR is installed." 1>&2;
     else
         ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 3000;
@@ -5159,7 +5299,7 @@ debian_90_install_smart_parking ()
 { 
     configure_smart_parking;
     if verify_smart_parking && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Smart parking is already installed. Skipping...";
+        echo "Smart parking is installed." 1>&2;
     else
         ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 300;
@@ -5180,7 +5320,7 @@ debian_90_install_smart_traffic_intersection_agent ()
 { 
     configure_smart_traffic_intersection_agent "$@";
     if verify_smart_traffic_intersection_agent && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Smart Traffic Intersection Agent is already installed. Skipping" 1>&2;
+        echo "Smart Traffic Intersection Agent is installed." 1>&2;
     else
         ensure_disk_size 16000;
         ensure_ram_size 52428800;
@@ -5202,7 +5342,7 @@ debian_90_install_stationary_robot_vision ()
 { 
     configure_stationary_robot_vision;
     if verify_stationary_robot_vision && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Stationary Robot Vision & Control is already installed. Skipping...";
+        echo "Stationary Robot Vision & Control is installed." 1>&2;
     else
         ensure_prop set installed/stationary_robot_vision/owned true;
         ensure_disk_size 15000;
@@ -5224,7 +5364,7 @@ debian_90_install_take_away ()
 { 
     configure_take_away;
     if verify_take_away && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Order accuracy Take Away is already installed. Skipping";
+        echo "Order accuracy Take Away is installed." 1>&2;
     else
         ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 10000;
@@ -5250,7 +5390,7 @@ debian_90_install_uav_mission_compute_sdk ()
 { 
     configure_uav_mission_compute_sdk;
     if verify_uav_mission_compute_sdk && [[ " $* " != *" --reinstall "* ]]; then
-        echo "UAV mission compute sdk is already installed. Skipping..." 1>&2;
+        echo "UAV mission compute sdk is installed." 1>&2;
     else
         ensure_ports_open "${used_ports[*]}" return 3;
         ensure_git_export "$workspace" "$version" "$repository" uav-mission-compute-sdk;
@@ -5321,7 +5461,7 @@ debian_90_install_vippet ()
 { 
     configure_vippet;
     if verify_vippet && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Vipet is already installed. Skipping...";
+        echo "Vipet is installed." 1>&2;
     else
         ensure_git_clone "$workspace" $version $repository tools/visual-pipeline-and-platform-evaluation-tool;
         cd "$workspace/tools/visual-pipeline-and-platform-evaluation-tool";
@@ -5333,7 +5473,7 @@ debian_90_install_visual_search_question_and_answering ()
 { 
     configure_visual_search_question_and_answering "$@";
     if verify_visual_search_question_and_answering && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Visual search question and answering is already installed. Skipping...";
+        echo "Visual search question and answering is installed." 1>&2;
     else
         ensure_disk_size 8000;
         ensure_ports_open "${used_ports[*]}" return 3;
@@ -5360,7 +5500,7 @@ debian_90_install_wind_turbine_anomaly_detection ()
 { 
     configure_wind_turbine_anomaly_detection;
     if verify_wind_turbine_anomaly_detection && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Wind turbine anomaly detection already installed. Skipping..." 1>&2;
+        echo "Wind turbine anomaly detection is installed." 1>&2;
     else
         ensure_disk_size 64000;
         ensure_ram_size 16777216;
@@ -6671,9 +6811,11 @@ flag&&$1{for(i=1;i<=NF;i++)print$i}
 }
 ensure_apt_install_package () 
 { 
+    local module="${1%%=*}";
     if ensure_apt_is_installed "${@%%"*"}"; then
-        echo "${*%%=*} is/are already installed. Skipping...";
+        echo "${*%%=*} $([ ${#*} -eq 1 ] && echo is || echo are) installed." 1>&2;
     else
+        ensure_prop set installed/${module//[^a-zA-Z0-9]/_}/owned true;
         ensure_apt update;
         ensure_apt install --no-install-recommends -y "$@";
     fi
@@ -6714,6 +6856,12 @@ ensure_apt_preference ()
         first=0;
         echo "$line";
     done | ensure_sudo tee "$pref_file" > /dev/null
+}
+ensure_apt_remove_package () 
+{ 
+    local module="${1%%=*}";
+    [ "$(ensure_prop get installed/${module//[^a-zA-Z0-9]/_}/owned)" = "true" ] || return 0;
+    ensure_apt autoremove -y "$@"
 }
 ensure_apt_source () 
 { 
