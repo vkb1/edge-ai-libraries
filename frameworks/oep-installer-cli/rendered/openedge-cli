@@ -2528,8 +2528,8 @@ configure_openvino ()
     key_file=/usr/share/keyrings/intel-gpg-archive-keyring.gpg;
     apt_entry="deb [signed-by=$key_file] https://$repo_name/openvino ${ID}${VERSION_ID%.*} main";
     apt_file=/etc/apt/sources.list.d/intel-openvino.list;
-    version=$([[ " $* " = *" dlstreamer "* ]] && echo 2026.2.0 || echo 2026.3.0);
     workspace="$(ensure_project_path)/openvino";
+    version=$([[ " $* " = *" dlstreamer "* ]] && echo 2026.2.0 || echo 2026.3.0);
     model="https://github.com/onnx/models/raw/4c46cd00fbdb7cd30b6c1c17ab54f2e1f4f7b177/validated/vision/classification/squeezenet/model/squeezenet1.0-12.onnx"
 }
 configure_osrf_gazebo_ros2 () 
@@ -3247,13 +3247,13 @@ debian_20_install_core_types ()
 { 
     if [ -e /etc/core-types ] && [[ " $* " != *" --reinstall "* ]]; then
         echo "/etc/core-types exists." 1>&2;
-        return;
-    fi;
-    local script="https://raw.githubusercontent.com/open-edge-platform/edge-workloads-and-benchmarks/refs/heads/main/utils/obtain_cores.sh";
-    set -o pipefail;
-    ensure_fetch "$script" - | bash | sed -n -E 's/^[[:space:]]*([a-zA-Z0-9_-]+)[[:space:]]*:[[:space:]]*(.*)/\U\1\E=\2/p' | ensure_sudo tee /etc/core-types;
-    ensure_prop set installed/core_types/owned true;
-    echo "Core types are detected and written to /etc/core-types"
+    else
+        ensure_prop set installed/core_types/owned true;
+        local script="https://raw.githubusercontent.com/open-edge-platform/edge-workloads-and-benchmarks/refs/heads/main/utils/obtain_cores.sh";
+        set -o pipefail;
+        ensure_fetch "$script" - | bash | sed -n -E 's/^[[:space:]]*([a-zA-Z0-9_-]+)[[:space:]]*:[[:space:]]*(.*)/\U\1\E=\2/p' | ensure_sudo tee /etc/core-types;
+        echo "@@HIGHLIGHT Core types are detected and written to /etc/core-types";
+    fi
 }
 debian_20_install_edge_pack_base_realtime () 
 { 
@@ -3510,6 +3510,10 @@ debian_30_group_docker_io ()
 { 
     echo "docker:"
 }
+debian_30_install_build_essential () 
+{ 
+    ensure_apt_install_package build-essential
+}
 debian_30_install_chrony () 
 { 
     ensure_apt_install_package chrony
@@ -3631,6 +3635,10 @@ debian_30_install_v4l_utils ()
 { 
     ensure_apt_install_package v4l-utils
 }
+debian_30_remove_build_essential () 
+{ 
+    ensure_apt_remove_package build-essential
+}
 debian_30_remove_cmake () 
 { 
     ensure_apt_remove_package cmake
@@ -3682,6 +3690,10 @@ debian_30_remove_sysbench ()
 debian_30_remove_v4l_utils () 
 { 
     ensure_apt_remove_package v4l-utils
+}
+debian_30_sbom_build_essential () 
+{ 
+    ensure_sbom_format pkg-list build-essential
 }
 debian_30_sbom_chrony () 
 { 
@@ -4243,31 +4255,21 @@ debian_70_install_nodejs ()
 }
 debian_70_install_openvino () 
 { 
-    configure_openvino $*;
+    configure_openvino "$@";
     if verify_openvino && [[ " $* " != *" --reinstall "* ]]; then
         echo "openvino-${version} is installed." 1>&2;
     else
         ensure_disk_size 1500;
+        ensure_prop set installed/openvino/owned true;
         debian_70_remove_openvino "$@";
         ensure_apt_key $key_file $key_url --dearmor;
         ensure_apt_source $apt_file "$apt_entry";
         ensure_apt update -y;
         ensure_apt install --no-install-recommends -y openvino-$version;
-        mkdir -p "$workspace";
-        python3 -m venv "$workspace"/.venv;
-        . "$workspace"/.venv/bin/activate;
-        pip install openvino-genai==${version};
+        verify_openvino;
         echo "openvino-${version} installed successfully.";
-        if [[ " $* " = *" --validate "* ]]; then
-            [ -e "$workspace"/${model##*/} ] || ensure_fetch "$model" "$workspace"/${model##*/};
-            for device in CPU GPU NPU;
-            do
-                echo "Validating ${model##*/} inferencing on $device...";
-                benchmark_app -t 5 -m "$workspace"/${model##*/} -d $device;
-            done;
-        fi;
     fi;
-    echo "@@HIGHLIGHT openvino-genai @$workspace/.venv";
+    test_openvino "$@";
     echo "@@HIGHLIGHT openvino samples @/usr/share/openvino"
 }
 debian_70_install_time_confighub () 
@@ -4298,7 +4300,10 @@ debian_70_profile_mediamtx ()
 }
 debian_70_profile_openvino () 
 { 
-    echo "curl gnupg python3_venv edge_base"
+    echo "curl gnupg python3_venv edge_base";
+    if [[ " $* " = *" --validate "* ]]; then
+        echo "build_essential cmake";
+    fi
 }
 debian_70_profile_time_confighub () 
 { 
@@ -4330,6 +4335,7 @@ debian_70_remove_nodejs ()
 }
 debian_70_remove_openvino () 
 { 
+    [ "$(ensure_prop get installed/openvino/owned)" = "true" ] || return 0;
     ensure_apt autoremove -m -y $(dpkg -l | grep openvino | awk '{print$2}') || true
 }
 debian_70_remove_time_confighub () 
@@ -4387,51 +4393,20 @@ debian_75_install_dlstreamer ()
         echo "dlstreamer-${version} is installed." 1>&2;
     else
         ensure_disk_size 15000;
+        ensure_prop set installed/dlstreamer/owned true;
         debian_75_remove_dlstreamer "$@";
         ensure_apt_key $key_file $key_url --dearmor;
         ensure_apt_source $list_file "$deb_entry";
         ensure_apt update -y;
         ensure_apt_allow_downgrades "${allow_downgrades[*]}" --no-install-recommends -y intel-dlstreamer=$version;
         ensure_apt install --allow-downgrades --no-install-recommends -y intel-dlstreamer=$version;
-        ensure_git_clone "$workspace" v$version $repository;
-        cd "$workspace";
-        python3 -m venv .venv;
-        . .venv/bin/activate;
-        pip install nncf==3.0.0 ultralytics==8.4.57;
+        verify_dlstreamer;
         echo "intel-dlstreamer=$version installed successfully.";
-        if [[ " $* " = *" --validate "* ]]; then
-            ( mkdir -p models/${od_model%/*};
-            ensure_fetch $model_repo/storage/$od_model.bin models/$od_model.bin;
-            ensure_fetch $model_repo/storage/$od_model.xml models/$od_model.xml;
-            ensure_fetch $model_repo/storage/${od_model_proc}.json models/$od_model.json );
-            ( mkdir -p models/${oc_model%/*};
-            ensure_fetch $model_repo/storage/$oc_model.bin models/$oc_model.bin;
-            ensure_fetch $model_repo/storage/$oc_model.xml models/$oc_model.xml );
-            set -o pipefail;
-            local -A device_map=([GPU]=/dev/dri/renderD128 [NPU]=/dev/accel/accel0);
-            . /opt/intel/dlstreamer/scripts/setup_dls_env.sh;
-            for device in ${!device_map[*]};
-            do
-                [ -e ${device_map[$device]} ] || continue;
-                echo "Validating $od_model and $oc_model on device $device...";
-                gst-launch-1.0 videotestsrc num-buffers=150 ! 'video/x-raw,format=BGRx,width=640,height=640' ! gvadetect model=models/$od_model.xml model_proc=models/$od_model.json device=$device ! gvainference model=models/$oc_model.xml device=$device ! gvafpscounter ! fakesink sync=false | ( info=0;
-                while IFS= read -r line; do
-                    echo "$line";
-                    case "$line" in 
-                        *"FpsCounter(last"*"sec): total="*)
-                            info=1
-                        ;;
-                    esac;
-                done;
-                [ $info -eq 1 ] );
-            done;
-        fi;
-        rm -rf .git;
     fi;
+    test_dlstreamer_pipeline "$@";
     echo "@@HIGHLIGHT shell env @/opt/intel/dlstreamer/scripts/setup_dls_env.sh";
     echo "@@HIGHLIGHT samples @/opt/intel/dlstreamer/samples";
-    echo "@@HIGHLIGHT optimizer @/opt/intel/dlstreamer/scripts/optimizer";
-    echo "@@HIGHLIGHT python venv @$workspace/.venv"
+    echo "@@HIGHLIGHT optimizer @/opt/intel/dlstreamer/scripts/optimizer"
 }
 debian_75_profile_dlstreamer () 
 { 
@@ -4439,7 +4414,10 @@ debian_75_profile_dlstreamer ()
 }
 debian_75_remove_dlstreamer () 
 { 
-    ensure_apt autoremove -m -y $(dpkg-query -l | awk '/^ii/&&/dlstreamer/{print$2}') || true
+    configure_dlstreamer;
+    [ "$(ensure_prop get installed/dlstreamer/owned)" = "true" ] || return 0;
+    ensure_apt autoremove -m -y $(dpkg-query -l | awk '/^ii/&&/dlstreamer/{print$2}') || true;
+    ensure_rm "$workspace"
 }
 debian_75_sbom_dlstreamer () 
 { 
@@ -4534,7 +4512,7 @@ root_path = Path(sys.argv[1])
 dataset_path = root_path / "mock_dataset"
 create_mock_dataset(dataset_path)
 test_anomalib_pipeline(root_path, dataset_path, sys.argv[2])
-' test $(ensure_select_device "$@" | tr 'a-z' 'A-Z') && echo "Anomalib test passed.";
+' test $(ensure_select_device "$@" | tr 'a-z' 'A-Z') && echo "@@HIGHLIGHT Anomalib test passed.";
             rm -rf test;
         fi;
     fi;
@@ -4686,8 +4664,8 @@ debian_90_install_autonomous_mobile_robot ()
     if verify_autonomous_mobile_robot "$@" && [[ " $* " != *" --reinstall "* ]]; then
         echo "Autonomous Mobile Robot is installed." 1>&2;
     else
-        ensure_prop set installed/autonomous_mobile_robot/owned true;
         ensure_disk_size $([[ "$amr_sdk_pkg" = *complete ]] && echo 40000 || echo 15000);
+        ensure_prop set installed/autonomous_mobile_robot/owned true;
         ensure_oneapi_ros_openvino;
         ensure_apt update -y;
         ensure_osrf_gazebo_ros2;
@@ -5344,8 +5322,8 @@ debian_90_install_stationary_robot_vision ()
     if verify_stationary_robot_vision && [[ " $* " != *" --reinstall "* ]]; then
         echo "Stationary Robot Vision & Control is installed." 1>&2;
     else
-        ensure_prop set installed/stationary_robot_vision/owned true;
         ensure_disk_size 15000;
+        ensure_prop set installed/stationary_robot_vision/owned true;
         ensure_oneapi_ros_openvino;
         ensure_apt update -y;
         ensure_osrf_gazebo_ros2;
@@ -7223,12 +7201,12 @@ ensure_sbom_format ()
     local key=$1;
     shift;
     case "$key" in 
-        pkg-list | apt-pref)
-            IFS='|';
+        pkg-list | apt-pref | yum-repo-conf)
+            local IFS='|';
             local pkg_str="$*";
             echo "\"$key\": [\"${pkg_str//'|'/\",\"}\"]"
         ;;
-        name | gpg-key | key-file | apt-source | apt-src-source | apt-list-file | apt-pref-file | apt-repository)
+        name | gpg-key | key-file | apt-source | apt-src-source | apt-list-file | apt-pref-file | apt-repository | yum-repo-file)
             echo "\"$key\": \"$*\""
         ;;
         *)
@@ -7522,7 +7500,7 @@ subcommand_remove ()
 subcommand_setup () 
 { 
     [[ " $* " != *" --help "* ]] || return;
-    local installer_misc_functions=(remove_oneapi_ros_openvino remove_osrf_gazebo_ros2 sbom_oneapi_ros_openvino sbom_osrf_gazebo_ros2 system_scan_check_cpu_instructions system_scan_check_docker system_scan_check_membank system_scan_check_network_access system_scan_check_pci_device system_scan_get_system_summary uninstall_k3s_edge_node_infrastructure_blueprint);
+    local installer_misc_functions=(remove_oneapi_ros_openvino remove_osrf_gazebo_ros2 sbom_oneapi_ros_openvino sbom_osrf_gazebo_ros2 system_scan_check_cpu_instructions system_scan_check_docker system_scan_check_membank system_scan_check_network_access system_scan_check_pci_device system_scan_get_system_summary test_dlstreamer_pipeline test_openvino uninstall_k3s_edge_node_infrastructure_blueprint);
     mkdir -p "$(dirname "$installer_bin")";
     cat > "$installer_bin" <<EOF
 #!/bin/bash
@@ -7742,6 +7720,90 @@ system_scan_get_system_summary ()
     [[ "$meminfo" != *mB ]] || meminfo="$(( ${meminfo%mB} / 1024 ))GB";
     echo "$cpuinfo · $coreinfo · $meminfo RAM"
 }
+test_dlstreamer_pipeline () 
+{ 
+    if [[ " $* " = *" --validate "* ]]; then
+        mkdir -p "$workspace";
+        cd "$workspace";
+        { 
+            mkdir -p models/${od_model%/*};
+            [ -e models/$od_model.bin ] || ensure_fetch $model_repo/storage/$od_model.bin models/$od_model.bin || { 
+                echo "Failed to download $models/$od_model.bin" 1>&2;
+                return 3
+            };
+            [ -e models/$od_model.xml ] || ensure_fetch $model_repo/storage/$od_model.xml models/$od_model.xml || { 
+                echo "Failed to download models/$od_model.xml" 1>&2;
+                return 3
+            };
+            [ -e models/$od_model.json ] || ensure_fetch $model_repo/storage/${od_model_proc}.json models/$od_model.json || { 
+                echo "Failed to download models/$od_model.json" 1>&2;
+                return 3
+            }
+        };
+        { 
+            mkdir -p models/${oc_model%/*};
+            [ -e models/$oc_model.bin ] || ensure_fetch $model_repo/storage/$oc_model.bin models/$oc_model.bin || { 
+                echo "Failed to download models/$oc_model.bin" 1>&2;
+                return 3
+            };
+            [ -e models/$oc_model.xml ] || ensure_fetch $model_repo/storage/$oc_model.xml models/$oc_model.xml || { 
+                echo "Failed to download models/$oc_model.xml" 1>&2;
+                return 3
+            }
+        };
+        . /opt/intel/dlstreamer/scripts/setup_dls_env.sh || return 3;
+        local validated=();
+        for device in CPU GPU NPU;
+        do
+            echo "Validating $od_model and $oc_model on device $device...";
+            ( set -o pipefail;
+            gst-launch-1.0 videotestsrc num-buffers=150 ! 'video/x-raw,format=BGRx,width=640,height=640' ! gvadetect model=models/$od_model.xml model_proc=models/$od_model.json device=$device ! gvainference model=models/$oc_model.xml device=$device ! gvafpscounter ! fakesink sync=false | ( info=0;
+            while IFS= read -r line; do
+                echo "$line";
+                case "$line" in 
+                    *"FpsCounter(last"*"sec): total="*)
+                        info=1
+                    ;;
+                esac;
+            done;
+            [ $info -eq 1 ] || exit 3 ) ) && validated+=("$device ok") || validated+=("$device failed");
+        done;
+        echo "@@HIGHLIGHT Validation: ${validated[*]}";
+        [[ " ${validated[*]} " != *failed* ]] || return 3;
+    fi
+}
+test_openvino () 
+{ 
+    if [[ " $* " = *" --validate "* ]]; then
+        [ -r "$workspace"/${model##*/} ] || { 
+            mkdir -p "$workspace";
+            ensure_fetch "$model" "$workspace"/${model##*/} || { 
+                echo "Failed to fetch ${model##*/}" 1>&2;
+                return 3
+            }
+        };
+        local benchmark_app="$(find "$workspace" -type f -name benchmark_app -perm -u+x || true)";
+        [ -x "$benchmark_app" ] || { 
+            mkdir -p "$workspace"/benchmark_app;
+            cd "$workspace"/benchmark_app;
+            cmake -S /usr/share/openvino/samples/cpp -B . -DCMAKE_BUILD_TYPE=Release;
+            cmake --build . --target benchmark_app -j;
+            benchmark_app="$(find "$workspace" -type f -name benchmark_app -perm -u+x || true)";
+            [ -x "$benchmark_app" ] || { 
+                echo "Failed to build benchmark_app" 1>&2;
+                return 3
+            }
+        };
+        local validated=();
+        for device in CPU GPU NPU;
+        do
+            echo "Validating ${model##*/} inferencing on $device...";
+            "$benchmark_app" -t 5 -m "$workspace"/${model##*/} -d $device && validated+=("$device ok") || validated+=("$device failed");
+        done;
+        echo "@@HIGHLIGHT Validation: ${validated[*]}";
+        [[ " ${validated[*]} " != *failed* ]] || return 3;
+    fi
+}
 uninstall_k3s_edge_node_infrastructure_blueprint () 
 { 
     [ "$installed_deployment" = k3s ] || return 0;
@@ -7787,11 +7849,7 @@ verify_dine_in ()
 }
 verify_dlstreamer () 
 { 
-    ensure_apt_is_installed intel-dlstreamer | grep -q -F ${version} > /dev/null 2>&1 || return 1;
-    [ -r "$workspace/.venv/bin/activate" ] || return 1;
-    cd "$workspace";
-    . .venv/bin/activate;
-    pip show ultralytics nncf
+    ensure_apt_is_installed intel-dlstreamer=${version} || return 1
 }
 verify_edge_node_infrastructure_blueprint () 
 { 
@@ -7905,10 +7963,7 @@ verify_npu_accel_packages ()
 }
 verify_openvino () 
 { 
-    ensure_apt_is_installed openvino-${version} || return 1;
-    [ -r "$workspace"/.venv/bin/activate ] || return 1;
-    . "$workspace"/.venv/bin/activate;
-    pip show openvino-genai 2> /dev/null | grep -q -F ${version}
+    ensure_apt_is_installed openvino-${version} || return 1
 }
 verify_pallet_defect_detection () 
 { 
