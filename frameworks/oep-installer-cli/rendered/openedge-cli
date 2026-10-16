@@ -1,11 +1,17 @@
 #!/bin/bash
 
 main () {
-  . /etc/os-release
-  ID_LIKE="$(echo "$ID_LIKE" | tr -cd 'a-zA-Z0-9')" # sanitize
+  if [ -z "$HOME" ]; then
+    echo "\$HOME must be set" >&2
+    return 3
+  fi
+
   red="\033[31m" green="\033[32m" yellow="\033[33m" reset="\033[0m"
   installer_name=openedge-cli
   installer_bin="$HOME/.local/bin/$installer_name"
+
+  . /etc/os-release
+  installer_family="$(x="${ID_LIKE:-$ID}";x="${x##* }";echo "${x//[^a-zA-Z0-9]/}")"
 
   local _globals=() _cmds=() _args=() cur=-1 v
   for v in "$@"; do
@@ -80,7 +86,7 @@ main () {
           for _dep in ${_deps[*]}; do
             _gf=${_dep/_install_/_group_}
             declare -F $_gf > /dev/null 2>&1 || continue
-            for _g in $($_gf $(act_extract_args group ${_dep#*_*_*_} "${_deps[*]#${ID_LIKE}_*_install_}" ${_resolved[*]})); do
+            for _g in $($_gf $(act_extract_args group ${_dep#*_*_*_} "${_deps[*]#${installer_family}_*_install_}" ${_resolved[*]})); do
               _groups["$_g"]=1
             done
           done
@@ -240,13 +246,13 @@ act_get ()
         ;;
         init)
             declare -g _act_cache_cmds=($(declare -F | grep -E " subcommand_" | grep -v -E 'subcommand_(list|setup)$' | cut -f2- -d_));
-            declare -g _act_cache_modules=($(declare -F | grep -E " ${ID_LIKE}_[0-9]+_($(IFS='|'; echo "${_act_cache_cmds[*]}"))_" | cut -f2,4- -d_ | sort | cut -f2- -d_ | awk '!seen[$0]++'));
+            declare -g _act_cache_modules=($(declare -F | grep -E " ${installer_family}_[0-9]+_($(IFS='|'; echo "${_act_cache_cmds[*]}"))_" | cut -f2,4- -d_ | sort | cut -f2- -d_ | awk '!seen[$0]++'));
             declare -gA _act_cache_functions=();
             local f rest;
             while read -r _ _ f; do
                 case $f in 
-                    "${ID_LIKE}_"*)
-                        rest=${f#"${ID_LIKE}_"};
+                    "${installer_family}_"*)
+                        rest=${f#"${installer_family}_"};
                         _act_cache_functions[${rest#*_}]=$f
                     ;;
                 esac;
@@ -307,7 +313,7 @@ act_helper ()
     if [ ${#handles[@]} -gt 0 ]; then
         if [ "$act_name" = "install" ]; then
             local -A licenses=() licenses_text=();
-            local all_install_modules="${handles[*]#${ID_LIKE}_*_install_}";
+            local all_install_modules="${handles[*]#${installer_family}_*_install_}";
             for licenser in ${handles[*]/_install_/_license_};
             do
                 if declare -F $licenser > /dev/null 2>&1; then
@@ -364,7 +370,7 @@ act_helper ()
                     [ "$order" -gt 0 ] || order=$order1;
                     [ "$order1" -ge "$order" ] || break;
                 fi;
-                local invoke_args="$(act_extract_args $act_name $name1 "${handles[*]#${ID_LIKE}_*_${act_name}_}" "$@")";
+                local invoke_args="$(act_extract_args $act_name $name1 "${handles[*]#${installer_family}_*_${act_name}_}" "$@")";
                 if [[ " $* " = *" --dry-run "* ]]; then
                     echo "@@COMP $name1";
                     echo "Invoke $handler with $invoke_args";
@@ -392,7 +398,7 @@ act_helper ()
             local scan_handler="${_act_cache_functions[${act_name}_pre_system_scan]:-}";
             if [[ " $* " != *" --dry-run "* && $rc -eq 0 && -n "$scan_handler" && " ${handles[*]} " = *" $scan_handler "* ]]; then
                 echo "@@REPORT SYSTEM SUMMARY";
-                $scan_handler $(act_extract_args $act_name pre_system_scan "${handles[*]#${ID_LIKE}_*_${act_name}_}" "$@");
+                $scan_handler $(act_extract_args $act_name pre_system_scan "${handles[*]#${installer_family}_*_${act_name}_}" "$@");
             fi
         } > >(LOG_FILE="$(ensure_project_path)/$installer_name/$(date +%m-%d-%Y).logs"
 mkdir -p "$(dirname "$LOG_FILE")"
@@ -7260,8 +7266,14 @@ subcommand_list ()
             echo
         ;;
         *" --sbom "*)
+            if [ ${#*} -eq 1 ]; then
+                act_get prefix profile_;
+                local all_profiles=(${_act_reply[*]});
+                local all_modules=(${_act_cache_modules[*]});
+                set -- ${all_modules[*]} ${all_profiles[*]#*_*_*_};
+            fi;
             local handles=($(act_find_deps install $(act_resolve_args install "$@")));
-            local all_install_modules="${handles[*]#${ID_LIKE}_*_install_}";
+            local all_install_modules="${handles[*]#${installer_family}_*_install_}";
             local handler sbomer;
             for handler in $(printf '%s\n' "${handles[@]}" | sort);
             do
@@ -7366,7 +7378,7 @@ subcommand_setup ()
     cat > "$installer_bin" <<EOF
 #!/bin/bash
 $(declare -f ${installer_misc_functions[*]})
-$(declare -f $(declare -F | grep -v '^declare -fx' | grep -E " (${ID_LIKE}_[0-9]+_|ensure_|act_|verify_|configure_|subcommand_|main$)" | cut -f3 -d' ' | tr '\n' ' '))
+$(declare -f $(declare -F | grep -v '^declare -fx' | grep -E " (${installer_family}_[0-9]+_|ensure_|act_|verify_|configure_|subcommand_|main$)" | cut -f3 -d' ' | tr '\n' ' '))
 main "\$@"
 EOF
 
