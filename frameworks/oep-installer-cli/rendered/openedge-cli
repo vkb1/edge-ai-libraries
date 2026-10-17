@@ -406,7 +406,11 @@ act_helper ()
 mkdir -p "$(dirname "$LOG_FILE")"
 echo "========== $(date -Ins) ==========" >> "$LOG_FILE"
 echo "@@COMMAND $act_name $*" >> "$LOG_FILE"
-act_panelled_logs ${act_text//,/ }) 2>&1;
+if [ -n "$_INSTALLER_PANEL_ACTIVE" ]; then
+    act_panelled_logs ${act_text//,/ };
+else
+    tee -a "$LOG_FILE";
+fi) 2>&1;
         wait;
         ensure_tmpdir destroy $installer_state;
         if [[ " $* " != *" --dry-run "* && -n "${explicit_mods// }" ]]; then
@@ -1818,10 +1822,6 @@ act_panelled_logs ()
         fi;
         _push_log "$CURRENT" "$clean";
         _draw
-    };
-    [[ -t 1 ]] || { 
-        [ -z "$LOG_FILE" ] && cat || tee -a "$LOG_FILE";
-        return
     };
     _open_tty;
     _read_geom;
@@ -4425,6 +4425,7 @@ debian_85_install_video_search_and_summarization ()
     if verify_video_search_and_summarization && [[ " $* " != *" --reinstall "* ]]; then
         echo "Video Search and Summarization is installed." 1>&2;
     else
+        ensure_ports_open "${used_ports[*]}" docker rm -f vss-model-download || true;
         ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 8000;
         ensure_git_export "$workspace" $version $repository sample-applications/video-search-and-summarization;
@@ -7025,10 +7026,13 @@ ensure_prop ()
     local f="$(ensure_project_path)/${installer_name:?}/${key_path:?}";
     case "$op" in 
         set)
-            printf '%s' "$value" > "$f"
+            mkdir -p "$(dirname "$f")" && printf '%s' "$value" > "$f"
         ;;
         get)
             [ -r "$f" ] && cat "$f" || printf '%s' "$value"
+        ;;
+        remove)
+            [ ! -r "$f" ] || rm -f "$f"
         ;;
     esac
 }
@@ -7108,6 +7112,26 @@ ensure_sudo ()
     [ -z "$hp" ] || proxy_args+=("http_proxy=$hp" "HTTP_PROXY=$hp");
     [ -z "$sp" ] || proxy_args+=("https_proxy=$sp" "HTTPS_PROXY=$sp");
     [ -z "$np" ] || proxy_args+=("no_proxy=$np" "NO_PROXY=$np");
+    if [ -e /dev/tty ] && : < /dev/tty 2> /dev/null; then
+        local ppid=$$;
+        local pid="$(ensure_prop get pids/sudo/pid$ppid)";
+        if [ -z "$pid" ] || ! kill -0 "$pid" 2> /dev/null; then
+            ( set +e;
+            trap - ERR EXIT INT TERM;
+            for fd in /proc/$BASHPID/fd/*;
+            do
+                fd=${fd##*/};
+                (( fd > 2 )) && eval "exec $fd>&-";
+            done 2> /dev/null;
+            while kill -0 $ppid 2> /dev/null; do
+                sleep 60;
+                sudo -n -v 2> /dev/null || break;
+            done;
+            ensure_prop remove pids/sudo/pid$ppid ) < /dev/null > /dev/null 2>&1 & pid=$!;
+            ensure_prop set pids/sudo/pid$ppid "$pid";
+            disown $pid;
+        fi;
+    fi;
     if sudo -n true 2> /dev/null; then
         sudo env "${proxy_args[@]}" "$@";
     else
