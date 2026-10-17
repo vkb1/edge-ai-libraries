@@ -161,7 +161,7 @@ act_expand_modules ()
         [ -z "${seen[$n]:-}" ] || continue;
         seen[$n]=1;
         local p="${_act_cache_functions[profile_$n]:-}";
-        [ -n "$p" ] && q+=($($p $act_name "${@:3}"));
+        [ -n "$p" ] && q+=($($p $act_name $(act_extract_args $act_name $n "${q[*]}" "${@:3}")));
     done;
     echo "${!seen[*]}"
 }
@@ -4441,81 +4441,9 @@ debian_80_install_anomalib ()
         python3 -m venv .venv;
         . .venv/bin/activate;
         pip install "anomalib[openvino,cpu]==${version}";
-        if [[ " $* " = *" --validate "* ]]; then
-            mkdir -p test;
-            python3 -c '
-from pathlib import Path
-from PIL import Image
-from anomalib.data import Folder
-from anomalib.models import Padim
-from anomalib.engine import Engine
-from anomalib.deploy import ExportType, OpenVINOInferencer
-import sys
-
-def create_mock_dataset(dataset_path):
-  train_good = dataset_path / "train" / "good"
-  test_good = dataset_path / "test" / "good"
-  test_defect = dataset_path / "test" / "defect"
-  for d in [train_good, test_good, test_defect]:
-    d.mkdir(parents=True, exist_ok=True)
-  for i in range(5):
-    img = Image.new("RGB", (256, 256), color=(200, 200, 200))
-    img.save(train_good / f"normal_{i}.png")
-    if i < 2:
-      img.save(test_good / f"normal_test_{i}.png")
-  for i in range(2):
-    img = Image.new("RGB", (256, 256), color=(200, 200, 200))
-    for x in range(100, 150):
-      for y in range(100, 150):
-        img.putpixel((x, y), (50, 50, 50))  # Synthetic anomaly block
-    img.save(test_defect / f"defect_{i}.png")
-
-def test_anomalib_pipeline(root_path, dataset_path, device):
-  datamodule = Folder(
-    name="synthetic_test",
-    root=dataset_path,
-    normal_dir="train/good",
-    abnormal_dir="test/defect",
-    normal_test_dir="test/good",
-    train_batch_size=2,
-    eval_batch_size=2,
-  )
-  model = Padim()
-  engine = Engine(
-    default_root_dir=root_path / "results",
-    max_epochs=1,
-    accelerator="auto",
-    devices=1,
-  )
-  engine.fit(model=model, datamodule=datamodule)
-  test_results = engine.test(model=model, datamodule=datamodule)
-  assert test_results is not None, "Evaluation test results returned None."
-  export_dir = root_path / "export"
-  engine.export(
-    model=model,
-    export_type=ExportType.OPENVINO,
-    export_root=export_dir,
-    input_size=(256, 256),
-  )
-  model_xml_files = list(export_dir.glob("**/*.xml"))
-  assert len(model_xml_files) > 0, "OpenVINO model XML representation was not generated."
-  inferencer = OpenVINOInferencer(
-    path=model_xml_files[0],
-    device=device,
-  )
-  sample_image_path = dataset_path / "test" / "defect" / "defect_0.png"
-  prediction = inferencer.predict(str(sample_image_path))
-  assert prediction is not None, "Inference prediction failed."
-  assert hasattr(prediction, "pred_score") or hasattr(prediction, "anomaly_map"), "Prediction output missing anomaly score or map attributes."
-
-root_path = Path(sys.argv[1])
-dataset_path = root_path / "mock_dataset"
-create_mock_dataset(dataset_path)
-test_anomalib_pipeline(root_path, dataset_path, sys.argv[2])
-' test $(ensure_select_device "$@" | tr 'a-z' 'A-Z') && echo "@@HIGHLIGHT Anomalib test passed.";
-            rm -rf test;
-        fi;
+        verify_anomalib;
     fi;
+    test_anomalib "$@";
     echo "@@HIGHLIGHT venv: $workspace/.venv"
 }
 debian_80_profile_anomalib () 
@@ -7500,7 +7428,7 @@ subcommand_remove ()
 subcommand_setup () 
 { 
     [[ " $* " != *" --help "* ]] || return;
-    local installer_misc_functions=(remove_oneapi_ros_openvino remove_osrf_gazebo_ros2 sbom_oneapi_ros_openvino sbom_osrf_gazebo_ros2 system_scan_check_cpu_instructions system_scan_check_docker system_scan_check_membank system_scan_check_network_access system_scan_check_pci_device system_scan_get_system_summary test_dlstreamer_pipeline test_openvino uninstall_k3s_edge_node_infrastructure_blueprint);
+    local installer_misc_functions=(remove_oneapi_ros_openvino remove_osrf_gazebo_ros2 sbom_oneapi_ros_openvino sbom_osrf_gazebo_ros2 system_scan_check_cpu_instructions system_scan_check_docker system_scan_check_membank system_scan_check_network_access system_scan_check_pci_device system_scan_get_system_summary test_anomalib test_dlstreamer_pipeline test_openvino uninstall_k3s_edge_node_infrastructure_blueprint);
     mkdir -p "$(dirname "$installer_bin")";
     cat > "$installer_bin" <<EOF
 #!/bin/bash
@@ -7720,6 +7648,93 @@ system_scan_get_system_summary ()
     [[ "$meminfo" != *mB ]] || meminfo="$(( ${meminfo%mB} / 1024 ))GB";
     echo "$cpuinfo · $coreinfo · $meminfo RAM"
 }
+test_anomalib () 
+{ 
+    if [[ " $* " = *" --validate "* ]]; then
+        . "$workspace"/.venv/bin/activate;
+        ensure_rm "$workspace"/test;
+        mkdir -p "$workspace"/test;
+        local validated=();
+        local -A device_map=([CPU]=/proc/cpuinfo [GPU]=/dev/dri/renderD128 [NPU]=/dev/accel/accel0);
+        for device in ${!device_map[*]};
+        do
+            [ -e ${device_map[$device]} ] || continue;
+            echo "Validating anomalib on device $device...";
+            python3 -c '
+from pathlib import Path
+from PIL import Image
+from anomalib.data import Folder
+from anomalib.models import Padim
+from anomalib.engine import Engine
+from anomalib.deploy import ExportType, OpenVINOInferencer
+import sys
+
+def create_mock_dataset(dataset_path):
+  train_good = dataset_path / "train" / "good"
+  test_good = dataset_path / "test" / "good"
+  test_defect = dataset_path / "test" / "defect"
+  for d in [train_good, test_good, test_defect]:
+    d.mkdir(parents=True, exist_ok=True)
+  for i in range(5):
+    img = Image.new("RGB", (256, 256), color=(200, 200, 200))
+    img.save(train_good / f"normal_{i}.png")
+    if i < 2:
+      img.save(test_good / f"normal_test_{i}.png")
+  for i in range(2):
+    img = Image.new("RGB", (256, 256), color=(200, 200, 200))
+    for x in range(100, 150):
+      for y in range(100, 150):
+        img.putpixel((x, y), (50, 50, 50))  # Synthetic anomaly block
+    img.save(test_defect / f"defect_{i}.png")
+
+def test_anomalib_pipeline(root_path, dataset_path, device):
+  datamodule = Folder(
+    name="synthetic_test",
+    root=dataset_path,
+    normal_dir="train/good",
+    abnormal_dir="test/defect",
+    normal_test_dir="test/good",
+    train_batch_size=2,
+    eval_batch_size=2,
+  )
+  model = Padim()
+  engine = Engine(
+    default_root_dir=root_path / "results",
+    max_epochs=1,
+    accelerator="auto",
+    devices=1,
+  )
+  engine.fit(model=model, datamodule=datamodule)
+  test_results = engine.test(model=model, datamodule=datamodule)
+  assert test_results is not None, "Evaluation test results returned None."
+  export_dir = root_path / "export"
+  engine.export(
+    model=model,
+    export_type=ExportType.OPENVINO,
+    export_root=export_dir,
+    input_size=(256, 256),
+  )
+  model_xml_files = list(export_dir.glob("**/*.xml"))
+  assert len(model_xml_files) > 0, "OpenVINO model XML representation was not generated."
+  inferencer = OpenVINOInferencer(
+    path=model_xml_files[0],
+    device=device,
+  )
+  sample_image_path = dataset_path / "test" / "defect" / "defect_0.png"
+  prediction = inferencer.predict(str(sample_image_path))
+  assert prediction is not None, "Inference prediction failed."
+  assert hasattr(prediction, "pred_score") or hasattr(prediction, "anomaly_map"), "Prediction output missing anomaly score or map attributes."
+
+root_path = Path(sys.argv[1])
+dataset_path = root_path / "mock_dataset"
+create_mock_dataset(dataset_path)
+test_anomalib_pipeline(root_path, dataset_path, sys.argv[2])
+' "$workspace"/test $device && validated+=("$device ok") || validated+=("$device failed");
+        done;
+        echo "@@HIGHLIGHT Validation: ${validated[*]}";
+        [[ "${validated[*]}" != *failed* ]] || return 3;
+    fi
+}
 test_dlstreamer_pipeline () 
 { 
     if [[ " $* " = *" --validate "* ]]; then
@@ -7753,8 +7768,10 @@ test_dlstreamer_pipeline ()
         };
         . /opt/intel/dlstreamer/scripts/setup_dls_env.sh || return 3;
         local validated=();
-        for device in CPU GPU NPU;
+        local -A device_map=([CPU]=/proc/cpuinfo [GPU]=/dev/dri/renderD128 [NPU]=/dev/accel/accel0);
+        for device in ${!device_map[*]};
         do
+            [ -e ${device_map[$device]} ] || continue;
             echo "Validating $od_model and $oc_model on device $device...";
             ( set -o pipefail;
             gst-launch-1.0 videotestsrc num-buffers=150 ! 'video/x-raw,format=BGRx,width=640,height=640' ! gvadetect model=models/$od_model.xml model_proc=models/$od_model.json device=$device ! gvainference model=models/$oc_model.xml device=$device ! gvafpscounter ! fakesink sync=false | ( info=0;
@@ -7795,10 +7812,12 @@ test_openvino ()
             }
         };
         local validated=();
-        for device in CPU GPU NPU;
+        local -A device_map=([CPU]=/proc/cpuinfo [GPU]=/dev/dri/renderD128 [NPU]=/dev/accel/accel0);
+        for device in ${!device_map[*]};
         do
+            [ -e ${device_map[$device]} ] || continue;
             echo "Validating ${model##*/} inferencing on $device...";
-            "$benchmark_app" -t 5 -m "$workspace"/${model##*/} -d $device && validated+=("$device ok") || validated+=("$device failed");
+            "$benchmark_app" -t 5 -m "$workspace"/${model##*/} -d $device --cache_dir "$workspace"/cache && validated+=("$device ok") || validated+=("$device failed");
         done;
         echo "@@HIGHLIGHT Validation: ${validated[*]}";
         [[ " ${validated[*]} " != *failed* ]] || return 3;
@@ -7835,8 +7854,7 @@ verify_agentic_smart_community ()
 verify_anomalib () 
 { 
     [ -r "$workspace"/.venv/bin/activate ] || return 1;
-    . "$workspace"/.venv/bin/activate;
-    python3 -c "import anomalib; assert anomalib.__version__ == '$version'"
+    . "$workspace"/.venv/bin/activate && python3 -c "import anomalib; assert anomalib.__version__ == '$version'"
 }
 verify_autonomous_mobile_robot () 
 { 
