@@ -360,6 +360,8 @@ act_helper ()
         local rc=0 order=0;
         local installer_state="";
         ensure_tmpdir create installer_state states /dev/shm;
+        export _INSTALLER_PANEL_ACTIVE=;
+        [ -t 1 ] && export _INSTALLER_PANEL_ACTIVE=1;
         { 
             for handler in $(echo "${handles[*]}" | tr ' ' '\n' | sort $sort_options);
             do
@@ -2882,7 +2884,7 @@ configure_video_processing_for_nvr ()
 configure_video_search_and_summarization () 
 { 
     workspace="$(ensure_project_path)/video-search-and-summarization";
-    version=release-2026.2.0;
+    version=1c5fdc1f440e685c8f82322ec09b60b7320ea404;
     repository="https://github.com/open-edge-platform/edge-ai-libraries.git";
     export APP_HOST_PORT=${APP_HOST_PORT:-12345};
     used_ports=($APP_HOST_PORT 3001 7890 6016 6008 8999 9777 8300 9300 8090 4001 4002 55555 9090 9273 5432 1883 5672 8640);
@@ -2891,7 +2893,7 @@ configure_video_search_and_summarization ()
     export VLM_MODEL_NAME=Qwen/Qwen2.5-VL-3B-Instruct;
     export ENABLED_WHISPER_MODELS=tiny.en,small.en,medium.en;
     export OD_MODEL_NAME=yolov8l-worldv2;
-    export TEXT_EMBEDDING_MODEL=Qwen/qwen3-embedding-0.6b;
+    export TEXT_EMBEDDING_MODEL=QwenText/qwen3-embedding-0.6b;
     export OVMS_LLM_MODEL_NAME=meta-llama/Llama-3.2-3B-Instruct;
     export PM_AUDIO_USE_FULL_TRANSCRIPT_SUMMARY=false;
     export MULTIMODAL_EMBEDDING_MODEL=CLIP/clip-vit-b-32;
@@ -2928,7 +2930,7 @@ configure_video_search_and_summarization ()
 }
 configure_video_search_and_summarization_gated () 
 { 
-    ensure_hf_token $VLM_MODEL_NAME $TEXT_EMBEDDING_MODEL $OVMS_LLM_MODEL_NAME;
+    ensure_hf_token $VLM_MODEL_NAME ${TEXT_EMBEDDING_MODEL/QwenText/Qwen} $OVMS_LLM_MODEL_NAME;
     export HUGGINGFACE_TOKEN="$HF_TOKEN";
     export GATED_MODEL=$([ -n "$HF_TOKEN" ] && echo true || echo false)
 }
@@ -3004,61 +3006,7 @@ debian_05_sbom_pciutils ()
 }
 debian_08_install_pre_system_scan () 
 { 
-    set -o pipefail;
-    ( echo "----------------------------------------------------------------";
-    ok="${green}✓  PASS${reset}";
-    nok="${red}⚠  MSG${reset}";
-    system_summary="$(system_scan_get_system_summary)";
-    echo "System|$system_summary";
-    pass=$ok;
-    membank_info="$(system_scan_check_membank)";
-    [ "$membank_info" = "DUAL/MULTI-CHANNELS" ] || pass="${nok/MSG/Check Memory}";
-    echo -e "RAM|$membank_info|$pass";
-    [ "$pass" = "$ok" ] || echo -e "@@HIGHLIGHT RAM|$membank_info|$pass" 1>&2;
-    pass=$ok;
-    [[ $PRETTY_NAME = *"24.04"* ]] || pass="${nok/MSG/Not supported}";
-    echo -e "OS|$PRETTY_NAME|$pass";
-    [ "$pass" = "$ok" ] || echo -e "@@HIGHLIGHT OS|$PRETTY_NAME|$pass" 1>&2;
-    pass=$ok;
-    docker_ver="$(system_scan_check_docker)";
-    [[ "$docker_ver" = *Compose* ]] || pass="${nok/MSG/Missing Docker Compose}";
-    [ -n "$docker_ver" ] || pass="${nok} Missing Docker";
-    echo -e "Docker|$docker_ver|$pass";
-    [ "$pass" = "$ok" ] || echo -e "@@HIGHLIGHT Docker|$docker_ver|$pass" 1>&2;
-    net_pass=$ok;
-    net_access="$(system_scan_check_network_access)";
-    [[ "$net_access" = *reachable* ]] || net_pass="${nok/MSG/Check Proxies}";
-    echo -e "Network|$net_access|$net_pass";
-    [ "$net_pass" = "$ok" ] || echo -e "@@HIGHLIGHT Network|$net_access|$net_pass" 1>&2;
-    echo;
-    echo "Accelerators:";
-    pass=$ok;
-    cpuinst_info="$(system_scan_check_cpu_instructions)";
-    [[ "$cpuinst_info" != *Missing* ]] || pass="${nok/MSG/Check CPU}";
-    echo -e "CPU|$cpuinst_info|$pass";
-    [ "$pass" = "$ok" ] || echo -e "@@HIGHLIGHT CPU|$cpuinst_info|$pass";
-    for accel in $(lspci -d 8086::0300 -n | cut -f3 -d' ');
-    do
-        pass=$ok;
-        accel_info="$(system_scan_check_pci_device $accel "Intel Integrated Graphics")";
-        if [ -n "$accel_info" ]; then
-            [[ "$accel_info" = *driver* ]] || pass="${nok/MSG/Missing Driver}";
-            echo -e "GPU|$accel_info|$pass";
-            [ "$pass" = "$ok" ] || echo -e "@@HIGHLIGHT GPU|$accel_info|$pass" 1>&2;
-        fi;
-    done;
-    for accel in $(lspci -d 8086::1200 -n | cut -f3 -d' ');
-    do
-        pass=$ok;
-        accel_info="$(system_scan_check_pci_device $accel "Intel AI Boost")";
-        if [ -n "$accel_info" ]; then
-            [[ "$accel_info" = *driver* ]] || pass="${nok/MSG/Missing Driver}";
-            echo -e "NPU|$accel_info|$pass";
-            [ "$pass" = "$ok" ] || echo -e "@@HIGHLIGHT NPU|$accel_info|$pass" 1>&2;
-        fi;
-    done;
-    echo "----------------------------------------------------------------";
-    [ "$net_pass" = "$ok" ] ) | ensure_columns
+    system_scan_summary_report
 }
 debian_08_profile_pre_system_scan () 
 { 
@@ -4483,9 +4431,9 @@ debian_85_install_video_search_and_summarization ()
         configure_video_search_and_summarization_gated;
         cd "$workspace"/sample-applications/video-search-and-summarization;
         sed -i "s|export HOST_IP=.*|export HOST_IP=$(ensure_ip)|" setup.sh;
-        sed -i 's|FINAL_ARG=.*|FINAL_ARG="${FINAL_ARG:-up -d}"|' setup.sh;
-        export FINAL_ARG=pull;
-        . ./setup.sh --search-and-summary;
+        sed 's|FINAL_ARG=.*|FINAL_ARG="pull --ignore-pull-failures"|' setup.sh > .setup.sh;
+        sed -i 's|"Unified Summarization/Search UI is now available.*"|""|' .setup.sh;
+        . ./.setup.sh --search-and-summary;
         verify_video_search_and_summarization;
     fi;
     local device=$(ensure_select_device "$@");
@@ -4533,7 +4481,6 @@ debian_85_start_video_search_and_summarization ()
     ensure_ports_open "${used_ports[*]}" debian_85_stop_video_search_and_summarization $*;
     configure_video_search_and_summarization_gated;
     cd "$workspace"/sample-applications/video-search-and-summarization;
-    export FINAL_ARG=;
     . ./setup.sh --search-and-summary;
     echo "@@HIGHLIGHT URL: http://$(ensure_ip):${APP_HOST_PORT}";
     echo "@@HIGHLIGHT stop|remove"
@@ -4541,6 +4488,7 @@ debian_85_start_video_search_and_summarization ()
 debian_85_stop_video_search_and_summarization () 
 { 
     configure_video_search_and_summarization "$@" || true;
+    docker rm -f vss-model-download || true;
     cd "$workspace"/sample-applications/video-search-and-summarization && { 
         . ./setup.sh --stop || true;
         . ./setup.sh --clean-data
@@ -7073,7 +7021,7 @@ ensure_project_path ()
 }
 ensure_prop () 
 { 
-    local op=$1 key_path=$2 value=${3:-};
+    local op=$1 key_path=$2 value="${3:-}";
     local f="$(ensure_project_path)/${installer_name:?}/${key_path:?}";
     case "$op" in 
         set)
@@ -7163,7 +7111,7 @@ ensure_sudo ()
     if sudo -n true 2> /dev/null; then
         sudo env "${proxy_args[@]}" "$@";
     else
-        if [ -t 0 ] && [ -z "$SUDO_PASSWORD" ]; then
+        if [ -t 0 ] && [ -z "$SUDO_PASSWORD" ] && [ -z "$_INSTALLER_PANEL_ACTIVE" ]; then
             sudo env "${proxy_args[@]}" "$@";
         else
             local rundir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}";
@@ -7428,7 +7376,7 @@ subcommand_remove ()
 subcommand_setup () 
 { 
     [[ " $* " != *" --help "* ]] || return;
-    local installer_misc_functions=(remove_oneapi_ros_openvino remove_osrf_gazebo_ros2 sbom_oneapi_ros_openvino sbom_osrf_gazebo_ros2 system_scan_check_cpu_instructions system_scan_check_docker system_scan_check_membank system_scan_check_network_access system_scan_check_pci_device system_scan_get_system_summary test_anomalib test_dlstreamer_pipeline test_openvino uninstall_k3s_edge_node_infrastructure_blueprint);
+    local installer_misc_functions=(remove_oneapi_ros_openvino remove_osrf_gazebo_ros2 sbom_oneapi_ros_openvino sbom_osrf_gazebo_ros2 system_scan_check_cpu_instructions system_scan_check_docker system_scan_check_membank system_scan_check_network_access system_scan_check_pci_device system_scan_get_system_summary system_scan_summary_report test_anomalib test_dlstreamer_pipeline test_openvino uninstall_k3s_edge_node_infrastructure_blueprint);
     mkdir -p "$(dirname "$installer_bin")";
     cat > "$installer_bin" <<EOF
 #!/bin/bash
@@ -7548,7 +7496,11 @@ system_scan_check_docker ()
 }
 system_scan_check_membank () 
 { 
-    local dmi_out="$(ensure_sudo dmidecode -t memory 2> /dev/null)";
+    local dmi_out="$(ensure_prop get installed/pre_system_scan/membank)";
+    [ -n "$dmi_out" ] || { 
+        dmi_out="$(ensure_sudo dmidecode -t memory 2> /dev/null)";
+        [ -z "$dmi_out" ] || ensure_prop set installed/pre_system_scan/membank "$dmi_out"
+    };
     local installed_modules=();
     mapfile -t installed_modules < <(echo "$dmi_out" | awk -v in_dev=0 '
     /^Memory Device$/ {
@@ -7647,6 +7599,64 @@ system_scan_get_system_summary ()
     [[ "$meminfo" != *kB ]] || meminfo="$(( ${meminfo%kB} / 1024 / 1024 ))GB";
     [[ "$meminfo" != *mB ]] || meminfo="$(( ${meminfo%mB} / 1024 ))GB";
     echo "$cpuinfo · $coreinfo · $meminfo RAM"
+}
+system_scan_summary_report () 
+{ 
+    set -o pipefail;
+    ( echo "----------------------------------------------------------------";
+    ok="${green}✓  PASS${reset}";
+    nok="${red}⚠  MSG${reset}";
+    system_summary="$(system_scan_get_system_summary)";
+    echo "System|$system_summary";
+    pass=$ok;
+    membank_info="$(system_scan_check_membank)";
+    [ "$membank_info" = "DUAL/MULTI-CHANNELS" ] || pass="${nok/MSG/Check Memory}";
+    echo -e "RAM|$membank_info|$pass";
+    [ "$pass" = "$ok" ] || echo -e "@@HIGHLIGHT RAM|$membank_info|$pass" 1>&2;
+    pass=$ok;
+    [[ $PRETTY_NAME = *"24.04"* ]] || pass="${nok/MSG/Not supported}";
+    echo -e "OS|$PRETTY_NAME|$pass";
+    [ "$pass" = "$ok" ] || echo -e "@@HIGHLIGHT OS|$PRETTY_NAME|$pass" 1>&2;
+    pass=$ok;
+    docker_ver="$(system_scan_check_docker)";
+    [[ "$docker_ver" = *Compose* ]] || pass="${nok/MSG/Missing Docker Compose}";
+    [ -n "$docker_ver" ] || pass="${nok} Missing Docker";
+    echo -e "Docker|$docker_ver|$pass";
+    [ "$pass" = "$ok" ] || echo -e "@@HIGHLIGHT Docker|$docker_ver|$pass" 1>&2;
+    net_pass=$ok;
+    net_access="$(system_scan_check_network_access)";
+    [[ "$net_access" = *reachable* ]] || net_pass="${nok/MSG/Check Proxies}";
+    echo -e "Network|$net_access|$net_pass";
+    [ "$net_pass" = "$ok" ] || echo -e "@@HIGHLIGHT Network|$net_access|$net_pass" 1>&2;
+    echo;
+    echo "Accelerators:";
+    pass=$ok;
+    cpuinst_info="$(system_scan_check_cpu_instructions)";
+    [[ "$cpuinst_info" != *Missing* ]] || pass="${nok/MSG/Check CPU}";
+    echo -e "CPU|$cpuinst_info|$pass";
+    [ "$pass" = "$ok" ] || echo -e "@@HIGHLIGHT CPU|$cpuinst_info|$pass";
+    for accel in $(lspci -d 8086::0300 -n | cut -f3 -d' ');
+    do
+        pass=$ok;
+        accel_info="$(system_scan_check_pci_device $accel "Intel Integrated Graphics")";
+        if [ -n "$accel_info" ]; then
+            [[ "$accel_info" = *driver* ]] || pass="${nok/MSG/Missing Driver}";
+            echo -e "GPU|$accel_info|$pass";
+            [ "$pass" = "$ok" ] || echo -e "@@HIGHLIGHT GPU|$accel_info|$pass" 1>&2;
+        fi;
+    done;
+    for accel in $(lspci -d 8086::1200 -n | cut -f3 -d' ');
+    do
+        pass=$ok;
+        accel_info="$(system_scan_check_pci_device $accel "Intel AI Boost")";
+        if [ -n "$accel_info" ]; then
+            [[ "$accel_info" = *driver* ]] || pass="${nok/MSG/Missing Driver}";
+            echo -e "NPU|$accel_info|$pass";
+            [ "$pass" = "$ok" ] || echo -e "@@HIGHLIGHT NPU|$accel_info|$pass" 1>&2;
+        fi;
+    done;
+    echo "----------------------------------------------------------------";
+    [ "$net_pass" = "$ok" ] ) | ensure_columns
 }
 test_anomalib () 
 { 
