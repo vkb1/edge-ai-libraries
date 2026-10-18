@@ -3214,7 +3214,7 @@ debian_20_install_core_types ()
 debian_20_install_edge_pack_base_realtime () 
 { 
     configure_edge_pack_base_realtime "$@";
-    if ensure_apt_is_installed intel-edge-base-realtime=$version && [[ " $* " != *" --reinstall "* ]]; then
+    if ensure_apt_is_installed intel-edge-base-realtime && [[ " $* " != *" --reinstall "* ]]; then
         echo "intel-edge-base-realtime is installed." 1>&2;
     else
         local candidate;
@@ -3241,7 +3241,7 @@ debian_20_install_edge_pack_base_realtime ()
 debian_20_install_edge_pack_base_standard () 
 { 
     configure_edge_pack_base_standard "$@";
-    if ensure_apt_is_installed intel-edge-base-standard=$version && [[ " $* " != *" --reinstall "* ]]; then
+    if ensure_apt_is_installed intel-edge-base-standard && [[ " $* " != *" --reinstall "* ]]; then
         echo "intel-edge-base-standard is installed." 1>&2;
     else
         ensure_prop set installed/edge_pack_base_standard/owned true;
@@ -3255,7 +3255,7 @@ debian_20_install_edge_pack_base_standard ()
 debian_20_install_edge_pack_graphics_core () 
 { 
     configure_edge_pack_graphics_core "$@";
-    if ensure_apt_is_installed intel-edge-graphics-core=$version && [[ " $* " != *" --reinstall "* ]]; then
+    if ensure_apt_is_installed intel-edge-graphics-core && [[ " $* " != *" --reinstall "* ]]; then
         echo "intel-edge-graphics-core is installed." 1>&2;
     else
         ensure_prop set installed/edge_pack_graphics_core/owned true;
@@ -3269,7 +3269,7 @@ debian_20_install_edge_pack_graphics_core ()
 debian_20_install_edge_pack_graphics_display () 
 { 
     configure_edge_pack_graphics_display "$@";
-    if ensure_apt_is_installed intel-edge-graphics-display=$version && [[ " $* " != *" --reinstall "* ]]; then
+    if ensure_apt_is_installed intel-edge-graphics-display && [[ " $* " != *" --reinstall "* ]]; then
         echo "intel-edge-graphics-display is installed." 1>&2;
     else
         ensure_prop set installed/edge_pack_graphics_display/owned true;
@@ -3283,7 +3283,7 @@ debian_20_install_edge_pack_graphics_display ()
 debian_20_install_edge_pack_media_core () 
 { 
     configure_edge_pack_media_core "$@";
-    if ensure_apt_is_installed intel-edge-media-core=$version && [[ " $* " != *" --reinstall "* ]]; then
+    if ensure_apt_is_installed intel-edge-media-core && [[ " $* " != *" --reinstall "* ]]; then
         echo "intel-edge-media-core is installed." 1>&2;
     else
         ensure_prop set installed/edge_pack_media_core/owned true;
@@ -3294,7 +3294,7 @@ debian_20_install_edge_pack_media_core ()
 debian_20_install_edge_pack_npu () 
 { 
     configure_edge_pack_npu "$@";
-    if ensure_apt_is_installed intel-edge-npu=$version && [[ " $* " != *" --reinstall "* ]]; then
+    if ensure_apt_is_installed intel-edge-npu && [[ " $* " != *" --reinstall "* ]]; then
         echo "intel-edge-npu is installed." 1>&2;
     else
         ensure_prop set installed/edge_pack_npu/owned true;
@@ -4260,7 +4260,7 @@ debian_60_remove_edge_node_infrastructure_blueprint ()
 debian_70_install_edge_pack_media_ffmpeg () 
 { 
     configure_edge_pack_media_ffmpeg "$@";
-    if ensure_apt_is_installed intel-edge-media-ffmpeg=$version && [[ " $* " != *" --reinstall "* ]]; then
+    if ensure_apt_is_installed intel-edge-media-ffmpeg && [[ " $* " != *" --reinstall "* ]]; then
         echo "intel-edge-media-ffmpeg is installed." 1>&2;
     else
         ensure_prop set installed/edge_pack_media_ffmpeg/owned true;
@@ -4271,7 +4271,7 @@ debian_70_install_edge_pack_media_ffmpeg ()
 debian_70_install_edge_pack_media_gst () 
 { 
     configure_edge_pack_media_gst "$@";
-    if ensure_apt_is_installed intel-edge-media-gst=$version && [[ " $* " != *" --reinstall "* ]]; then
+    if ensure_apt_is_installed intel-edge-media-gst && [[ " $* " != *" --reinstall "* ]]; then
         echo "intel-edge-media-gst is installed." 1>&2;
     else
         ensure_prop set installed/edge_pack_media_gst/owned true;
