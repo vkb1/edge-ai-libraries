@@ -3484,6 +3484,7 @@ debian_30_install_cmake ()
 }
 debian_30_install_docker_ce () 
 { 
+    configure_docker_ce "$@";
     if docker version > /dev/null 2>&1 && docker buildx version > /dev/null 2>&1 && docker compose version > /dev/null 2>&1 && [[ " $* " != *" --reinstall "* ]]; then
         echo "docker is installed." 1>&2;
     else
@@ -4682,15 +4683,7 @@ debian_90_install_dine_in ()
 }
 debian_90_install_geti () 
 { 
-    configure_geti "$@";
-    if verify_geti && [[ " $* " != *" --reinstall "* ]]; then
-        echo "Geti is installed." 1>&2;
-    else
-        ensure_ports_open "$port" return 3;
-        ensure_disk_size 20000;
-        ensure_ram_size 16777216;
-        docker pull $image_name;
-    fi
+    install_geti "$@"
 }
 debian_90_install_handheld_multi_modal () 
 { 
@@ -5658,8 +5651,7 @@ debian_90_remove_dine_in ()
 }
 debian_90_remove_geti () 
 { 
-    debian_90_stop_geti "$@";
-    docker image rm -f $image_name || true
+    remove_geti "$@"
 }
 debian_90_remove_handheld_multi_modal () 
 { 
@@ -5903,12 +5895,7 @@ debian_90_start_dine_in ()
 }
 debian_90_start_geti () 
 { 
-    configure_geti "$@";
-    ensure_ports_open "$port" debian_90_stop_geti;
-    mkdir -p "$workspace"/geti-data;
-    docker run --rm --name geti-app -d -v "$workspace"/geti-data:/application/data:rw -e HOST=0.0.0.0 -e PORT=$port -p $port:$port -e http_proxy -e https_proxy -e no_proxy -e HTTP_PROXY -e HTTPS_PROXY -e NO_PROXY --device /dev/dri:/dev/dri --group-add $(getent group render | cut -d: -f3) --group-add $(id -g) --shm-size 8g $image_name;
-    echo "@@HIGHLIGHT URL: http://$(ensure_ip):$port";
-    echo "@@HIGHLIGHT workspace: $workspace/geti-data"
+    start_geti "$@"
 }
 debian_90_start_handheld_multi_modal () 
 { 
@@ -6453,8 +6440,7 @@ debian_90_stop_dine_in ()
 }
 debian_90_stop_geti () 
 { 
-    configure_geti "$@";
-    docker rm -f geti-app || true
+    stop_geti "$@"
 }
 debian_90_stop_handheld_multi_modal () 
 { 
@@ -7301,6 +7287,23 @@ ensure_trap ()
         fi;
     done
 }
+install_geti () 
+{ 
+    configure_geti "$@";
+    if verify_geti && [[ " $* " != *" --reinstall "* ]]; then
+        echo "Geti is installed." 1>&2;
+    else
+        ensure_ports_open "$port" docker rm -f geti-app || true;
+        ensure_ports_open "$port" return 3;
+        ensure_disk_size 20000;
+        docker pull $image_name;
+    fi
+}
+remove_geti () 
+{ 
+    stop_geti "$@";
+    docker image rm -f $image_name || true
+}
 remove_oneapi_ros_openvino () 
 { 
     configure_oneapi_ros_openvino;
@@ -7335,6 +7338,20 @@ sbom_osrf_gazebo_ros2 ()
     ensure_sbom_format apt-source "$osrf_entry";
     ensure_sbom_format apt-list-file "$osrf_list";
     ensure_sbom_format pkg-list curl lsb-release gnupg $([ "$ros_distro" != jazzy ] || echo gz-harmonic)
+}
+start_geti () 
+{ 
+    configure_geti "$@";
+    ensure_ports_open "$port" stop_geti;
+    mkdir -p "$workspace"/geti-data;
+    docker run --rm --name geti-app -d -v "$workspace"/geti-data:/application/data:rw -e HOST=0.0.0.0 -e PORT=$port -p $port:$port -e http_proxy -e https_proxy -e no_proxy -e HTTP_PROXY -e HTTPS_PROXY -e NO_PROXY $([ ! -d /dev/dri ] || echo "--device /dev/dri:/dev/dri") --group-add $(getent group render | cut -d: -f3 || echo 992) --group-add $(id -g) --shm-size 8g $image_name;
+    echo "@@HIGHLIGHT URL: http://$(ensure_ip):$port";
+    echo "@@HIGHLIGHT workspace: $workspace/geti-data"
+}
+stop_geti () 
+{ 
+    configure_geti "$@";
+    docker rm -f geti-app || true
 }
 subcommand_install () 
 { 
@@ -7495,7 +7512,7 @@ subcommand_remove ()
 subcommand_setup () 
 { 
     [[ " $* " != *" --help "* ]] || return;
-    local installer_misc_functions=(remove_oneapi_ros_openvino remove_osrf_gazebo_ros2 sbom_oneapi_ros_openvino sbom_osrf_gazebo_ros2 system_scan_check_cpu_instructions system_scan_check_docker system_scan_check_membank system_scan_check_network_access system_scan_check_pci_device system_scan_get_system_summary system_scan_summary_report test_anomalib test_dlstreamer_pipeline test_openvino uninstall_k3s_edge_node_infrastructure_blueprint);
+    local installer_misc_functions=(install_geti remove_geti remove_oneapi_ros_openvino remove_osrf_gazebo_ros2 sbom_oneapi_ros_openvino sbom_osrf_gazebo_ros2 start_geti stop_geti system_scan_check_cpu_instructions system_scan_check_docker system_scan_check_membank system_scan_check_network_access system_scan_check_pci_device system_scan_get_system_summary system_scan_summary_report test_anomalib test_dlstreamer_pipeline test_openvino uninstall_k3s_edge_node_infrastructure_blueprint);
     mkdir -p "$(dirname "$installer_bin")";
     cat > "$installer_bin" <<EOF
 #!/bin/bash
@@ -7732,8 +7749,14 @@ system_scan_summary_report ()
     [ "$membank_info" = "DUAL/MULTI-CHANNELS" ] || pass="${nok/MSG/Check Memory}";
     echo -e "RAM|$membank_info|$pass";
     [ "$pass" = "$ok" ] || echo -e "@@HIGHLIGHT RAM|$membank_info|$pass" 1>&2;
-    pass=$ok;
-    [[ $PRETTY_NAME = *"24.04"* ]] || pass="${nok/MSG/Not supported}";
+    case "$PRETTY_NAME" in 
+        *"24.04"* | *"26.04"* | *"Red Hat Enterprise"*)
+            pass=$ok
+        ;;
+        *)
+            pass="${nok/MSG/Not supported}"
+        ;;
+    esac;
     echo -e "OS|$PRETTY_NAME|$pass";
     [ "$pass" = "$ok" ] || echo -e "@@HIGHLIGHT OS|$PRETTY_NAME|$pass" 1>&2;
     pass=$ok;
