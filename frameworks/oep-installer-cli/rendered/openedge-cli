@@ -2091,13 +2091,18 @@ configure_edge_pack ()
 { 
     edge_pack_repo="apt.repos.intel.com";
     edge_pack_key_url="https://$edge_pack_repo/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB";
-    edge_pack_key_file=/etc/apt/keyrings/edgepack.gpg;
+    edge_pack_key_file=/etc/apt/keyrings/intel-edge-pack.gpg;
     edge_pack_source="deb [signed-by=$edge_pack_key_file] https://$edge_pack_repo/edgepack $VERSION_CODENAME stable";
-    edge_pack_list_file=/etc/apt/sources.list.d/edgepack.list;
+    edge_pack_list_file=/etc/apt/sources.list.d/intel-edge-pack.list;
     edge_pack_pref=("Package: *" "Pin: origin $edge_pack_repo" "Pin-Priority: 1001");
     edge_pack_pref_file=/etc/apt/preferences.d/edgepack.pref;
     edge_pack_install_options=("--no-install-recommends");
-    edge_pack_allow_downgrades=(libgbm1 libgstreamer-gl1.0-0 libva-wayland2 mesa-libgallium weston)
+    edge_pack_allow_downgrades=(libgbm1 libgstreamer-gl1.0-0 libva-wayland2 mesa-libgallium weston);
+    edge_pack_ppa_repo=;
+    edge_pack_ppa_key_url=;
+    edge_pack_ppa_key_file=;
+    edge_pack_ppa_source=;
+    edge_pack_ppa_list_file=
 }
 configure_edge_pack_base_realtime () 
 { 
@@ -3048,25 +3053,6 @@ debian_15_install_debconf_utils ()
 { 
     ensure_apt_install_package debconf-utils
 }
-debian_15_install_edge_pack () 
-{ 
-    configure_edge_pack "$@";
-    local reinstall=$([[ " $* " = *" --reinstall "* ]] && echo 1 || echo 0);
-    local reconfigured=0;
-    if [ ! -e "$edge_pack_key_file" ] || [ $reinstall -eq 1 ]; then
-        ensure_apt_key "$edge_pack_key_file" "$edge_pack_key_url" --dearmor;
-        reconfigured=1;
-    fi;
-    if [ ! -e "$edge_pack_source_file" ] || [ $reinstall -eq 1 ]; then
-        ensure_apt_source "$edge_pack_list_file" "$edge_pack_source";
-        reconfigured=1;
-    fi;
-    if [ ! -e "$edge_pack_pref_file" ] || [ $reinstall -eq 1 ]; then
-        ensure_apt_preference "$edge_pack_pref_file" "${edge_pack_pref[@]}";
-        reconfigured=1;
-    fi;
-    [ $reconfigured -eq 0 ] || ensure_apt update -y
-}
 debian_15_install_gawk () 
 { 
     ensure_apt_install_package gawk
@@ -3107,10 +3093,6 @@ debian_15_install_yq ()
 { 
     ensure_apt_install_package yq
 }
-debian_15_profile_edge_pack () 
-{ 
-    echo "curl gnupg"
-}
 debian_15_profile_libze1 () 
 { 
     echo "curl"
@@ -3122,13 +3104,6 @@ debian_15_remove_cpuid ()
 debian_15_remove_debconf_utils () 
 { 
     ensure_apt_remove_package debconf-utils
-}
-debian_15_remove_edge_pack () 
-{ 
-    dpkg -l | grep -q -F intel-edge- || { 
-        configure_edge_pack "$@";
-        ensure_sudo rm -f "$edge_pack_key_file" "$edge_pack_source_file" "$edge_pack_pref_file"
-    }
 }
 debian_15_remove_jq () 
 { 
@@ -3178,6 +3153,64 @@ debian_15_sbom_unzip ()
 debian_15_sbom_yq () 
 { 
     ensure_sbom_format pkg-list yq
+}
+debian_19_install_edge_pack () 
+{ 
+    configure_edge_pack "$@";
+    local reinstall=$([[ " $* " = *" --reinstall "* ]] && echo 1 || echo 0);
+    local reconfigured=0;
+    if [ ! -e "$edge_pack_key_file" ] || [ $reinstall -eq 1 ]; then
+        ensure_apt_key "$edge_pack_key_file" "$edge_pack_key_url" --dearmor;
+        reconfigured=1;
+    fi;
+    if [ ! -e "$edge_pack_source_file" ] || [ $reinstall -eq 1 ]; then
+        ensure_apt_source "$edge_pack_list_file" "$edge_pack_source";
+        reconfigured=1;
+    fi;
+    if [ -n "$edge_pack_ppa_repo" ]; then
+        if [ ! -e "$edge_pack_ppa_key_file" ] || [ $reinstall -eq 1 ]; then
+            ensure_apt_key "$edge_pack_ppa_key_file" "$edge_pack_ppa_key_url" --dearmor;
+            reconfigured=1;
+        fi;
+        if [ ! -e "$edge_pack_ppa_source_file" ] || [ $reinstall -eq 1 ]; then
+            ensure_apt_source "$edge_pack_ppa_list_file" "$edge_pack_ppa_source";
+            reconfigured=1;
+        fi;
+    fi;
+    if [ ! -e "$edge_pack_pref_file" ] || [ $reinstall -eq 1 ]; then
+        ensure_apt_preference "$edge_pack_pref_file" "${edge_pack_pref[@]}";
+        reconfigured=1;
+    fi;
+    [ $reconfigured -eq 0 ] || ensure_apt update -y
+}
+debian_19_profile_edge_pack () 
+{ 
+    echo "curl gnupg"
+}
+debian_19_remove_edge_pack () 
+{ 
+    dpkg -l | grep -q -F intel-edge- || { 
+        configure_edge_pack "$@";
+        ensure_rm "$edge_pack_key_file" "$edge_pack_source_file" "$edge_pack_pref_file";
+        [ -z "$edge_pack_ppa_repo" ] || ensure_rm "$edge_pack_ppa_list_file" "$edge_pack_ppa_key_file"
+    }
+}
+debian_19_sbom_edge_pack_repo_entries () 
+{ 
+    if [ -n "$edge_pack_ppa_repo" ]; then
+        ensure_sbom_format gpg-key "$edge_pack_ppa_key_url";
+        ensure_sbom_format key-file "$edge_pack_ppa_key_file";
+        ensure_sbom_format apt-source "$edge_pack_ppa_source";
+        ensure_sbom_format apt-list-file "$edge_pack_ppa_list_file";
+        echo "---";
+    fi;
+    ensure_sbom_format name "$edge_pack_repo";
+    ensure_sbom_format gpg-key "$edge_pack_key_url";
+    ensure_sbom_format key-file "$edge_pack_key_file";
+    ensure_sbom_format apt-source "$edge_pack_source";
+    ensure_sbom_format apt-list-file "$edge_pack_list_file";
+    ensure_sbom_format apt-pref "${edge_pack_pref[@]}";
+    ensure_sbom_format apt-pref-file "$edge_pack_pref_file"
 }
 debian_20_group_edge_pack_base_realtime () 
 { 
@@ -3343,7 +3376,7 @@ debian_20_remove_edge_pack_base_realtime ()
     if [ "$(ensure_prop get installed/edge_pack_base_realtime/fallback)" != "true" ]; then
         [ "$(ensure_prop get installed/edge_pack_base_realtime/owned)" = "true" ] || return 0;
         ensure_apt autoremove -y intel-edge-base-realtime || true;
-        debian_15_remove_edge_pack "$@" || true;
+        debian_19_remove_edge_pack "$@" || true;
     else
         debian_20_remove_edge_pack_base_standard "$@";
     fi
@@ -3352,42 +3385,36 @@ debian_20_remove_edge_pack_base_standard ()
 { 
     [ "$(ensure_prop get installed/edge_pack_base_standard/owned)" = "true" ] || return 0;
     ensure_apt autoremove -y intel-edge-base-standard || true;
-    debian_15_remove_edge_pack "$@" || true
+    debian_19_remove_edge_pack "$@" || true
 }
 debian_20_remove_edge_pack_graphics_core () 
 { 
     [ "$(ensure_prop get installed/edge_pack_graphics_core/owned)" = "true" ] || return 0;
     ensure_apt autoremove -y intel-edge-graphics-core || true;
-    debian_15_remove_edge_pack "$@" || true
+    debian_19_remove_edge_pack "$@" || true
 }
 debian_20_remove_edge_pack_graphics_display () 
 { 
     [ "$(ensure_prop get installed/edge_pack_graphics_display/owned)" = "true" ] || return 0;
     ensure_apt autoremove -y intel-edge-graphics-display || true;
-    debian_15_remove_edge_pack "$@" || true
+    debian_19_remove_edge_pack "$@" || true
 }
 debian_20_remove_edge_pack_media_core () 
 { 
     [ "$(ensure_prop get installed/edge_pack_media_core/owned)" = "true" ] || return 0;
     ensure_apt autoremove -y intel-edge-media-core || true;
-    debian_15_remove_edge_pack "$@" || true
+    debian_19_remove_edge_pack "$@" || true
 }
 debian_20_remove_edge_pack_npu () 
 { 
     [ "$(ensure_prop get installed/edge_pack_npu/owned)" = "true" ] || return 0;
     ensure_apt autoremove -y intel-edge-npu || true;
-    debian_15_remove_edge_pack "$@" || true
+    debian_19_remove_edge_pack "$@" || true
 }
 debian_20_sbom_edge_pack_base_realtime () 
 { 
     configure_edge_pack_base_realtime "$@";
-    ensure_sbom_format name "$edge_pack_repo";
-    ensure_sbom_format gpg-key "$edge_pack_key_url";
-    ensure_sbom_format key-file "$edge_pack_key_file";
-    ensure_sbom_format apt-source "$edge_pack_source";
-    ensure_sbom_format apt-list-file "$edge_pack_list_file";
-    ensure_sbom_format apt-pref "${edge_pack_pref[@]}";
-    ensure_sbom_format apt-pref-file "$edge_pack_pref_file";
+    debian_19_sbom_edge_pack_repo_entries "$@";
     if [ "$(ensure_prop get installed/edge_pack_base_realtime/fallback)" = "true" ]; then
         ensure_sbom_format pkg-list "intel-edge-base-standard=$version*";
     else
@@ -3397,61 +3424,31 @@ debian_20_sbom_edge_pack_base_realtime ()
 debian_20_sbom_edge_pack_base_standard () 
 { 
     configure_edge_pack_base_standard "$@";
-    ensure_sbom_format name "$edge_pack_repo";
-    ensure_sbom_format gpg-key "$edge_pack_key_url";
-    ensure_sbom_format key-file "$edge_pack_key_file";
-    ensure_sbom_format apt-source "$edge_pack_source";
-    ensure_sbom_format apt-list-file "$edge_pack_list_file";
-    ensure_sbom_format apt-pref "${edge_pack_pref[@]}";
-    ensure_sbom_format apt-pref-file "$edge_pack_pref_file";
+    debian_19_sbom_edge_pack_repo_entries "$@";
     ensure_sbom_format pkg-list "intel-edge-base-standard=$version*"
 }
 debian_20_sbom_edge_pack_graphics_core () 
 { 
     configure_edge_pack_graphics_core "$@";
-    ensure_sbom_format name "$edge_pack_repo";
-    ensure_sbom_format gpg-key "$edge_pack_key_url";
-    ensure_sbom_format key-file "$edge_pack_key_file";
-    ensure_sbom_format apt-source "$edge_pack_source";
-    ensure_sbom_format apt-list-file "$edge_pack_list_file";
-    ensure_sbom_format apt-pref "${edge_pack_pref[@]}";
-    ensure_sbom_format apt-pref-file "$edge_pack_pref_file";
+    debian_19_sbom_edge_pack_repo_entries "$@";
     ensure_sbom_format pkg-list "intel-edge-graphics-core=$version*"
 }
 debian_20_sbom_edge_pack_graphics_display () 
 { 
     configure_edge_pack_graphics_display "$@";
-    ensure_sbom_format name "$edge_pack_repo";
-    ensure_sbom_format gpg-key "$edge_pack_key_url";
-    ensure_sbom_format key-file "$edge_pack_key_file";
-    ensure_sbom_format apt-source "$edge_pack_source";
-    ensure_sbom_format apt-list-file "$edge_pack_list_file";
-    ensure_sbom_format apt-pref "${edge_pack_pref[@]}";
-    ensure_sbom_format apt-pref-file "$edge_pack_pref_file";
+    debian_19_sbom_edge_pack_repo_entries "$@";
     ensure_sbom_format pkg-list "intel-edge-graphics-display=$version*"
 }
 debian_20_sbom_edge_pack_media_core () 
 { 
     configure_edge_pack_media_core "$@";
-    ensure_sbom_format name "$edge_pack_repo";
-    ensure_sbom_format gpg-key "$edge_pack_key_url";
-    ensure_sbom_format key-file "$edge_pack_key_file";
-    ensure_sbom_format apt-source "$edge_pack_source";
-    ensure_sbom_format apt-list-file "$edge_pack_list_file";
-    ensure_sbom_format apt-pref "${edge_pack_pref[@]}";
-    ensure_sbom_format apt-pref-file "$edge_pack_pref_file";
+    debian_19_sbom_edge_pack_repo_entries "$@";
     ensure_sbom_format pkg-list "intel-edge-media-core=$version*"
 }
 debian_20_sbom_edge_pack_npu () 
 { 
     configure_edge_pack_npu "$@";
-    ensure_sbom_format name "$edge_pack_repo";
-    ensure_sbom_format gpg-key "$edge_pack_key_url";
-    ensure_sbom_format key-file "$edge_pack_key_file";
-    ensure_sbom_format apt-source "$edge_pack_source";
-    ensure_sbom_format apt-list-file "$edge_pack_list_file";
-    ensure_sbom_format apt-pref "${edge_pack_pref[@]}";
-    ensure_sbom_format apt-pref-file "$edge_pack_pref_file";
+    debian_19_sbom_edge_pack_repo_entries "$@";
     ensure_sbom_format pkg-list "intel-edge-npu=$version*"
 }
 debian_29_install_reboot () 
@@ -4357,13 +4354,13 @@ debian_70_remove_edge_pack_media_ffmpeg ()
 { 
     [ "$(ensure_prop get installed/edge_pack_media_ffmpeg/owned)" = "true" ] || return 0;
     ensure_apt autoremove -y intel-edge-media-ffmpeg || true;
-    debian_15_remove_edge_pack "$@" || true
+    debian_19_remove_edge_pack "$@" || true
 }
 debian_70_remove_edge_pack_media_gst () 
 { 
     [ "$(ensure_prop get installed/edge_pack_media_gst/owned)" = "true" ] || return 0;
     ensure_apt autoremove -y intel-edge-media-gst || true;
-    debian_15_remove_edge_pack "$@" || true
+    debian_19_remove_edge_pack "$@" || true
 }
 debian_70_remove_ffmpeg () 
 { 
@@ -4391,25 +4388,13 @@ debian_70_remove_time_confighub ()
 debian_70_sbom_edge_pack_media_ffmpeg () 
 { 
     configure_edge_pack_media_ffmpeg "$@";
-    ensure_sbom_format name "$edge_pack_repo";
-    ensure_sbom_format gpg-key "$edge_pack_key_url";
-    ensure_sbom_format key-file "$edge_pack_key_file";
-    ensure_sbom_format apt-source "$edge_pack_source";
-    ensure_sbom_format apt-list-file "$edge_pack_list_file";
-    ensure_sbom_format apt-pref "${edge_pack_pref[@]}";
-    ensure_sbom_format apt-pref-file "$edge_pack_pref_file";
+    debian_19_sbom_edge_pack_repo_entries "$@";
     ensure_sbom_format pkg-list "intel-edge-media-ffmpeg=$version*"
 }
 debian_70_sbom_edge_pack_media_gst () 
 { 
     configure_edge_pack_media_gst "$@";
-    ensure_sbom_format name "$edge_pack_repo";
-    ensure_sbom_format gpg-key "$edge_pack_key_url";
-    ensure_sbom_format key-file "$edge_pack_key_file";
-    ensure_sbom_format apt-source "$edge_pack_source";
-    ensure_sbom_format apt-list-file "$edge_pack_list_file";
-    ensure_sbom_format apt-pref "${edge_pack_pref[@]}";
-    ensure_sbom_format apt-pref-file "$edge_pack_pref_file";
+    debian_19_sbom_edge_pack_repo_entries "$@";
     ensure_sbom_format pkg-list "intel-edge-media-gst=$version*"
 }
 debian_70_sbom_ffmpeg () 
