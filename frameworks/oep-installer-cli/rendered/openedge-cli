@@ -1970,7 +1970,7 @@ configure_autonomous_mobile_robot_device ()
 { 
     configure_autonomous_mobile_robot_slam "$1";
     ensure_apt_is_installed "$amr_slam_pkg" && return 0;
-    ensure_apt remove -y $(printf '%s\n' "${amr_slam_pkgs[@]}" | grep -v -x -F "$amr_slam_pkg");
+    ensure_apt purge --auto-remove -y $(printf '%s\n' "${amr_slam_pkgs[@]}" | grep -v -x -F "$amr_slam_pkg");
     ensure_apt install -y "$amr_slam_pkg";
     ensure_apt_is_installed "$amr_slam_pkg"
 }
@@ -3696,7 +3696,7 @@ debian_30_remove_kernel_module_essential ()
         [ "$(ensure_prop get installed/kernel_module_essential/owned_$p)" = "true" ] || continue;
         pkgs+=($p);
     done;
-    [ ${#pkgs[@]} -eq 0 ] || ensure_apt autoremove -y "${pkgs[@]}"
+    [ ${#pkgs[@]} -eq 0 ] || ensure_apt purge --auto-remove -y "${pkgs[@]}"
 }
 debian_30_remove_make () 
 { 
@@ -3908,7 +3908,7 @@ debian_40_remove_gpu_accel ()
 { 
     [ "$(ensure_prop get installed/gpu_accel/owned)" = "true" ] || return 0;
     configure_gpu_accel "$@";
-    ensure_apt autoremove -m -y clinfo libze-intel-gpu1 intel-media-va-driver-non-free intel-opencl-icd || true;
+    ensure_apt purge --auto-remove -y clinfo libze-intel-gpu1 intel-media-va-driver-non-free intel-opencl-icd || true;
     ensure_apt_source_remove https://repositories.intel.com/gpu;
     ensure_rm /usr/share/keyrings/intel-gpu-archive-keyring.gpg "$key_file" "$apt_file"
 }
@@ -3922,7 +3922,7 @@ debian_40_remove_npu_accel ()
 { 
     [ "$(ensure_prop get installed/npu_accel/owned)" = "true" ] || return 0;
     configure_npu_accel "$@";
-    ensure_apt autoremove -m -y intel-driver-compiler-npu intel-fw-npu intel-level-zero-npu intel-level-zero-npu-dbgsym || true;
+    ensure_apt purge --auto-remove -y intel-driver-compiler-npu intel-fw-npu intel-level-zero-npu intel-level-zero-npu-dbgsym || true;
     ensure_rm "$workspace"
 }
 debian_40_remove_pcm () 
@@ -4084,8 +4084,8 @@ debian_50_remove_ros2 ()
     [ "$(ensure_prop get installed/ros2/owned)" = "true" ] || return 0;
     configure_ros2;
     if verify_ros2; then
-        ensure_apt autoremove -m -y ros-$ros_distro-desktop ros-dev-tools || true;
-        ensure_apt purge -y ros2-apt-source || true;
+        ensure_apt purge --auto-remove -y ros-$ros_distro-desktop ros-dev-tools || true;
+        ensure_apt purge --auto-remove -y ros2-apt-source || true;
         [ ! -w ~/.bashrc ] || sed -i "\|^source /opt/ros/$ros_distro/setup.bash\$|d" ~/.bashrc;
     else
         echo "ROS 2 already removed. Skipping";
@@ -4132,14 +4132,13 @@ debian_55_install_ros_openvino ()
         ensure_apt_source $ov_list "$ov_deb_entry";
         ensure_apt_preference $ov_pref "${ov_deb_pref[@]}";
         ensure_apt update -y;
-        ensure_apt purge -y ros-$ros_distro-openvino-node || true;
-        ensure_apt autoremove -y || true;
+        ensure_apt purge --auto-remove -y ros-$ros_distro-openvino-node || true;
         echo PURGE | ensure_sudo debconf-communicate ros-$ros_distro-openvino-node > /dev/null 2>&1 || true;
         echo "ros-$ros_distro-openvino-node ros-$ros_distro-openvino-node/install_models boolean true" | ensure_sudo debconf-set-selections > /dev/null 2>&1 || true;
         local ov_installed;
         ov_installed="$(dpkg-query -W -f='${Version}' openvino 2> /dev/null | cut -d. -f1-3)";
         if [ -n "$ov_installed" ] && [ "$ov_installed" != "$ov_version" ]; then
-            ensure_apt remove -y openvino $(dpkg-query -W -f='${db:Status-Abbrev} ${Package}\n' "*openvino*-$ov_installed" 2> /dev/null | awk '$1 == "ii" {print $2}');
+            ensure_apt purge --auto-remove -y openvino $(dpkg-query -W -f='${db:Status-Abbrev} ${Package}\n' "*openvino*-$ov_installed" 2> /dev/null | awk '$1 == "ii" {print $2}');
         fi;
         ensure_apt install -y --allow-downgrades "openvino=$ov_version*";
         ensure_apt install -y ros-$ros_distro-openvino-node;
@@ -4161,7 +4160,7 @@ debian_55_remove_realsense ()
     [ "$(ensure_prop get installed/realsense/owned)" = "true" ] || return 0;
     configure_realsense;
     if verify_realsense; then
-        ensure_apt autoremove -m -y librealsense2 librealsense2-dkms ros-$ros_distro-librealsense2 || true;
+        ensure_apt purge --auto-remove -y librealsense2 librealsense2-dkms ros-$ros_distro-librealsense2 || true;
         ensure_rm "$rs_key_file" "$rs_list";
     else
         echo "RealSense SDK already removed. Skipping";
@@ -4172,7 +4171,7 @@ debian_55_remove_ros_openvino ()
     [ "$(ensure_prop get installed/ros_openvino/owned)" = "true" ] || return 0;
     configure_ros_openvino;
     if verify_ros_openvino; then
-        ensure_apt autoremove -m -y ros-$ros_distro-openvino-node openvino || true;
+        ensure_apt purge --auto-remove -y ros-$ros_distro-openvino-node openvino || true;
         ensure_rm "$ov_key_file" "$ov_list" "$ov_pref" "$amr_key_file" "$amr_list" "$amr_pref_file";
     else
         echo "ROS 2 OpenVINO toolkit already removed. Skipping";
@@ -4377,7 +4376,7 @@ debian_70_remove_nodejs ()
 debian_70_remove_openvino () 
 { 
     [ "$(ensure_prop get installed/openvino/owned)" = "true" ] || return 0;
-    ensure_apt autoremove -m -y $(dpkg -l | grep openvino | awk '{print$2}') || true
+    ensure_apt purge --auto-remove -y $(dpkg -l | grep openvino | awk '{print$2}') || true
 }
 debian_70_remove_time_confighub () 
 { 
@@ -4445,7 +4444,7 @@ debian_75_remove_dlstreamer ()
 { 
     configure_dlstreamer;
     [ "$(ensure_prop get installed/dlstreamer/owned)" = "true" ] || return 0;
-    ensure_apt autoremove -m -y $(dpkg-query -l | awk '/^ii/&&/dlstreamer/{print$2}') || true;
+    ensure_apt purge --auto-remove -y $(dpkg-query -l | awk '/^ii/&&/dlstreamer/{print$2}') || true;
     ensure_rm "$workspace"
 }
 debian_75_sbom_dlstreamer () 
@@ -5622,7 +5621,7 @@ debian_90_remove_autonomous_mobile_robot ()
     [ "$(ensure_prop get installed/autonomous_mobile_robot/owned)" = "true" ] || return 0;
     configure_autonomous_mobile_robot;
     if ensure_apt_is_installed ros-$ros_distro-robotics-sdk || ensure_apt_is_installed ros-$ros_distro-robotics-sdk-complete; then
-        ensure_apt autoremove -m -y ros-$ros_distro-robotics-sdk ros-$ros_distro-robotics-sdk-complete "${amr_slam_pkgs[@]}" || true;
+        ensure_apt purge --auto-remove -y ros-$ros_distro-robotics-sdk ros-$ros_distro-robotics-sdk-complete "${amr_slam_pkgs[@]}" || true;
         verify_robotics_in_use_ros_openvino || remove_osrf_gazebo_ros2;
         remove_oneapi_ros_openvino;
     else
@@ -5777,7 +5776,7 @@ debian_90_remove_stationary_robot_vision ()
     [ "$(ensure_prop get installed/stationary_robot_vision/owned)" = "true" ] || return 0;
     configure_stationary_robot_vision;
     if ensure_apt_is_installed ros-$ros_distro-rvc-simulation || ensure_apt_is_installed ros-$ros_distro-rvc; then
-        ensure_apt autoremove -m -y ros-$ros_distro-rvc-simulation ros-$ros_distro-rvc ros-$ros_distro-robot-config ros-$ros_distro-robot-config-plugins || true;
+        ensure_apt purge --auto-remove -y ros-$ros_distro-rvc-simulation ros-$ros_distro-rvc ros-$ros_distro-robot-config ros-$ros_distro-robot-config-plugins || true;
         verify_robotics_in_use_ros_openvino || remove_osrf_gazebo_ros2;
         remove_oneapi_ros_openvino;
     else
