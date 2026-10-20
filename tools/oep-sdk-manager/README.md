@@ -1,5 +1,26 @@
 # OEP SDK Manager
 
+OEP SDK Manager is maintained in `edge-ai-libraries/tools/oep-sdk-manager/`.
+It was previously located in `metro-ai-suite/metro-sdk-manager/`.
+
+## Validation
+
+From this directory, run:
+
+```bash
+bash tests/run_tests.sh --offline
+bash tests/run_tests.sh links
+```
+
+The offline suite checks installer scripts and tutorial files without network
+access. Install ShellCheck to include shell linting; CI requires it.
+The link suite checks the selector's external URLs and requires network access.
+Installers are not executed by either suite.
+
+Current download links continue to use their working upstream location until
+the new upstream files are published. Release-specific downloads stay pinned to
+their original release branches.
+
 ## Overview
 
 

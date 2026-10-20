@@ -35,7 +35,8 @@ NAME="UAV Mission Compute SDK"
 
 set -euo pipefail
 
-readonly SCRIPT_NAME="$(basename "${0}")"
+SCRIPT_NAME="$(basename "${0}")"
+readonly SCRIPT_NAME
 readonly LOG_PREFIX="[${SCRIPT_NAME}]"
 
 # Color definitions
@@ -161,9 +162,10 @@ get_storage_info() {
     set -o pipefail
     
     if [[ -n "${storage_info}" ]]; then
-      local used=$(echo "${storage_info}" | awk '{print $1}')
-      local total=$(echo "${storage_info}" | awk '{print $4}')
-      local available=$(echo "${storage_info}" | awk '{print $6}' | tr -d '()')
+      local used total available
+      used=$(echo "${storage_info}" | awk '{print $1}')
+      total=$(echo "${storage_info}" | awk '{print $4}')
+      available=$(echo "${storage_info}" | awk '{print $6}' | tr -d '()')
       echo -e "${GREEN}${BOLD}Storage:${NC} ${YELLOW}${used} used${NC} ${WHITE}/${NC} ${MAGENTA}${total} total${NC} ${WHITE}(${CYAN}${available} available${WHITE})${NC}"
     else
       echo -e "${GREEN}${BOLD}Storage:${NC} ${RED}Information not available${NC}"
@@ -342,9 +344,10 @@ verify_images() {
   
   for image in "${images[@]}"; do
     set +o pipefail
-    local image_info=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep "^${image}" | head -1)
+    local image_info
+    image_info=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep "^${image}" | head -1)
     set -o pipefail
-    
+
     if [[ -n "${image_info}" ]]; then
       echo -e "  ${CYAN}✓ ${image_info}${NC}"
     else
@@ -522,9 +525,8 @@ verify_repos() {
   for repo in "${repositories[@]}"; do
     IFS='|' read -r repo_url branch target_dir <<< "${repo}"
     new_target_dir="$HOME/oep/${target_dir}"
-    local repo_info=$(git -C "${new_target_dir}" remote get-url origin 2>/dev/null)
-
-    if [[ -n "${repo_info}" ]]; then
+    local repo_info
+    if repo_info=$(git -C "${new_target_dir}" remote get-url origin 2>/dev/null) && [[ -n "${repo_info}" ]]; then
       echo -e "  ${CYAN}✓ ${target_dir}${NC}"
     else
       echo -e "  ${RED}✗ ${target_dir} not found${NC}"

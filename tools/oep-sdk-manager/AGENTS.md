@@ -23,7 +23,7 @@ Each SDK installs Docker container images and clones GitHub repositories (`edge-
 ## Repository Structure
 
 ```
-metro-sdk-manager/
+tools/oep-sdk-manager/
 ├── docs/                              # Sphinx documentation source
 │   ├── oep-sdk-manager-files/
 │   │   ├── selector.html          # Interactive SDK selector UI

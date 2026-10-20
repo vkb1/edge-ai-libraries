@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# run_tests.sh — Main test runner for metro-sdk-manager
+# run_tests.sh — Main test runner for oep-sdk-manager
 #
 # Usage:
 #   ./tests/run_tests.sh              Run all tests

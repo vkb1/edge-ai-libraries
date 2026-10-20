@@ -190,7 +190,7 @@ Create compelling visualization experiences for your AI applications. This tutor
 
 ### Support Channels
 
-- [GitHub Issues](https://github.com/open-edge-platform/metro-ai-suite/issues)
+- [GitHub Issues](https://github.com/open-edge-platform/edge-ai-libraries/issues)
   \- Technical issue tracking and community support
 
 <!--hide_directive

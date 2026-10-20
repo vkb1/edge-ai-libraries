@@ -79,7 +79,7 @@ for script in "${SCRIPT_FILES[@]}"; do
       pass "ShellCheck passed"
     else
       fail "${name}: ShellCheck warnings/errors"
-      shellcheck -S warning -e SC1091 "${script}" 2>&1 | head -20
+      shellcheck -S warning -e SC1091 "${script}" 2>&1 || true
     fi
   else
     warn "ShellCheck not installed — skipping"

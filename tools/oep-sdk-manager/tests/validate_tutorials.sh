@@ -86,7 +86,7 @@ echo ""
 # ───────────────────────────────────────────
 echo -e "${CYAN}[2] SDK get-started.md files${NC}"
 
-EXPECTED_SDKS=("oep-vision-ai-sdk" "oep-gen-ai-sdk" "visual-ai-demo-kit")
+EXPECTED_SDKS=("oep-vision-ai-sdk" "oep-gen-ai-sdk" "visual-ai-demo-kit" "uav-mission-compute-sdk")
 
 for sdk in "${EXPECTED_SDKS[@]}"; do
   sdk_dir="${USER_GUIDE}/${sdk}"
@@ -146,42 +146,46 @@ echo -e "${CYAN}[4] External URLs in markdown files${NC}"
 URL_COUNT=0
 URL_FAIL=0
 
-while IFS= read -r md_file; do
-  md_name="${md_file#"${REPO_ROOT}/"}"
+if [[ "${OFFLINE:-false}" == "true" ]]; then
+  warn "Skipping external tutorial URLs (--offline mode)"
+else
+  while IFS= read -r md_file; do
+    md_name="${md_file#"${REPO_ROOT}/"}"
 
-  while IFS=: read -r line_num line_content; do
-    # Extract URLs from markdown links [text](url) and bare URLs
-    while [[ "${line_content}" =~ (https?://[^\)\"\'\>\`[:space:]]+) ]]; do
-      url="${BASH_REMATCH[1]}"
-      # Clean trailing punctuation
-      url="${url%\.}"
-      url="${url%,}"
+    while IFS=: read -r line_num line_content; do
+      # Extract URLs from markdown links [text](url) and bare URLs
+      while [[ "${line_content}" =~ (https?://[^\)\"\'\>\`[:space:]]+) ]]; do
+        url="${BASH_REMATCH[1]}"
+        # Clean trailing punctuation
+        url="${url%\.}"
+        url="${url%,}"
 
-      # Skip localhost, placeholder, and example URLs
-      if [[ "${url}" =~ localhost ]] || [[ "${url}" =~ \<[a-zA-Z_]+\> ]] || [[ "${url}" =~ ^https?://\< ]]; then
-        WARN=$((WARN + 1))
-        echo -e "  ${YELLOW}⚠${NC} Skipped (placeholder): ${md_name}:${line_num} → ${url}"
+        # Skip localhost, placeholder, and example URLs
+        if [[ "${url}" =~ localhost ]] || [[ "${url}" =~ \<[a-zA-Z_]+\> ]] || [[ "${url}" =~ ^https?://\< ]]; then
+          WARN=$((WARN + 1))
+          echo -e "  ${YELLOW}⚠${NC} Skipped (placeholder): ${md_name}:${line_num} → ${url}"
+          line_content="${line_content#*"${url}"}"
+          continue
+        fi
+
+        URL_COUNT=$((URL_COUNT + 1))
+
+        http_code=$(curl -o /dev/null -s -w "%{http_code}" -L --max-time 15 \
+          -A "Mozilla/5.0 OEP-SDK-Manager-Test" "${url}" 2>/dev/null || echo "000")
+
+        if [[ "${http_code}" =~ ^(200|301|302|303|307|308)$ ]]; then
+          pass "[${http_code}] ${md_name}:${line_num} → ${url}"
+        else
+          URL_FAIL=$((URL_FAIL + 1))
+          fail "[${http_code}] ${md_name}:${line_num} → ${url}"
+        fi
+
         line_content="${line_content#*"${url}"}"
-        continue
-      fi
+      done
+    done < <(grep -n 'https\?://' "${md_file}" || true)
 
-      URL_COUNT=$((URL_COUNT + 1))
-
-      http_code=$(curl -o /dev/null -s -w "%{http_code}" -L --max-time 15 \
-        -A "Mozilla/5.0 OEP-SDK-Manager-Test" "${url}" 2>/dev/null || echo "000")
-
-      if [[ "${http_code}" =~ ^(200|301|302|303|307|308)$ ]]; then
-        pass "[${http_code}] ${md_name}:${line_num} → ${url}"
-      else
-        URL_FAIL=$((URL_FAIL + 1))
-        fail "[${http_code}] ${md_name}:${line_num} → ${url}"
-      fi
-
-      line_content="${line_content#*"${url}"}"
-    done
-  done < <(grep -n 'https\?://' "${md_file}" || true)
-
-done < <(find "${DOCS_DIR}" -name '*.md' -type f | sort)
+  done < <(find "${DOCS_DIR}" -name '*.md' -type f | sort)
+fi
 echo ""
 
 # ───────────────────────────────────────────
