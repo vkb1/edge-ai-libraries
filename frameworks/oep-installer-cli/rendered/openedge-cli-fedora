@@ -3488,11 +3488,8 @@ system_scan_check_docker ()
 }
 system_scan_check_membank () 
 { 
-    local dmi_out="$(ensure_prop get installed/pre_system_scan/membank)";
-    [ -n "$dmi_out" ] || { 
-        dmi_out="$(ensure_sudo dmidecode -t memory 2> /dev/null)";
-        [ -z "$dmi_out" ] || ensure_prop set installed/pre_system_scan/membank "$dmi_out"
-    };
+    local dmi_out;
+    dmi_out="$(ensure_sudo dmidecode -t memory 2> /dev/null)" || return 0;
     local installed_modules=();
     mapfile -t installed_modules < <(echo "$dmi_out" | awk -v in_dev=0 '
     /^Memory Device$/ {
@@ -3519,7 +3516,7 @@ system_scan_check_membank ()
     local populated_count=${#installed_modules[@]};
     if [[ ${populated_count} -eq 0 ]]; then
         echo "Not detected";
-        return;
+        return 0;
     fi;
     local channels=() mod;
     for mod in "${installed_modules[@]}";
@@ -3601,7 +3598,9 @@ system_scan_summary_report ()
     system_summary="$(system_scan_get_system_summary)";
     echo "System|$system_summary";
     pass=$ok;
-    membank_info="$(system_scan_check_membank)";
+    membank_info="$(ensure_prop get installed/pre_system_scan/membank)";
+    [ -n "$membank_info" ] || membank_info="$(system_scan_check_membank)";
+    [ -z "$membank_info" ] || ensure_prop set installed/pre_system_scan/membank "$membank_info";
     [ "$membank_info" = "DUAL/MULTI-CHANNELS" ] || pass="${nok/MSG/Check Memory}";
     echo -e "RAM|$membank_info|$pass";
     [ "$pass" = "$ok" ] || echo -e "@@HIGHLIGHT RAM|$membank_info|$pass" 1>&2;
