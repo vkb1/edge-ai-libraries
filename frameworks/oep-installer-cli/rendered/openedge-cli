@@ -2956,7 +2956,8 @@ configure_vippet ()
 { 
     workspace="$(ensure_project_path)/vippet";
     version=release-2026.2.0;
-    repository=https://github.com/open-edge-platform/edge-ai-libraries.git
+    repository=https://github.com/open-edge-platform/edge-ai-libraries.git;
+    used_ports=(80 7860 8000 9090 8554 8889)
 }
 configure_visual_search_question_and_answering () 
 { 
@@ -4513,9 +4514,8 @@ debian_85_install_video_search_and_summarization ()
     if verify_video_search_and_summarization && [[ " $* " != *" --reinstall "* ]]; then
         echo "Video Search and Summarization is installed." 1>&2;
     else
-        ensure_ports_open "${used_ports[*]}" docker rm -f vss-model-download || true;
-        ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 8000;
+        ensure_ports_open install video_search_and_summarization "${used_ports[@]}";
         ensure_git_export "$workspace" $version $repository sample-applications/video-search-and-summarization;
         configure_video_search_and_summarization_gated;
         cd "$workspace"/sample-applications/video-search-and-summarization;
@@ -4567,7 +4567,7 @@ debian_85_start_esq ()
 debian_85_start_video_search_and_summarization () 
 { 
     configure_video_search_and_summarization "$@";
-    ensure_ports_open "${used_ports[*]}" debian_85_stop_video_search_and_summarization $*;
+    ensure_ports_open start video_search_and_summarization "${used_ports[@]}";
     configure_video_search_and_summarization_gated;
     cd "$workspace"/sample-applications/video-search-and-summarization;
     . ./setup.sh --search-and-summary;
@@ -4589,8 +4589,8 @@ debian_90_install_agentic_predictive_maintenance_pipeline ()
     if verify_agentic_predictive_maintenance_pipeline && [[ " $* " != *" --reinstall "* ]]; then
         echo "Agentic Predictive Maintenance Pipeline is installed." 1>&2;
     else
-        ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 15000;
+        ensure_ports_open install agentic_predictive_maintenance_pipeline "${used_ports[@]}";
         ensure_git_export "$workspace" "$version" "$repository" agentic-predictive-maintenance-pipeline;
         cd "$workspace"/agentic-predictive-maintenance-pipeline/apps/pipeline-defect-detection;
         sed -i "s|^HOST_IP=.*|HOST_IP=$(ensure_ip)|" .env_pipeline-defect-detection;
@@ -4612,9 +4612,9 @@ debian_90_install_agentic_smart_community ()
     if verify_agentic_smart_community && [[ " $* " != *" --reinstall "* ]]; then
         echo "Agentic Smart Community is installed." 1>&2;
     else
-        ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 2000;
         ensure_ram_size 65011712 33554432;
+        ensure_ports_open install agentic_smart_community "${used_ports[@]}";
         ensure_git_export "$workspace" "$version" "$repository" agentic-smart-community;
         mkdir -p "${mlvu_workspace%/*}";
         ensure_git_clone "$mlvu_workspace" "${mlvu_version}" "$mlvu_repository" "$mlvu_subpath";
@@ -4655,8 +4655,8 @@ debian_90_install_dine_in ()
     if verify_dine_in && [[ " $* " != *" --reinstall "* ]]; then
         echo "Order accuracy is installed." 1>&2;
     else
-        ensure_ports_open "${ports[*]}" return 3;
         ensure_disk_size 45000;
+        ensure_ports_open install dine_in "${ports[@]}";
         ensure_git_clone "$workspace" $version $repository;
         cd "$workspace"/dine-in;
         make init-env;
@@ -4683,8 +4683,8 @@ debian_90_install_handheld_multi_modal ()
     if verify_handheld_multi_modal $* && [[ " $* " != *" --reinstall "* ]]; then
         echo "handheld_multi_modal is installed." 1>&2;
     else
-        ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 45000;
+        ensure_ports_open install_handheld_multi_modal "${used_ports[@]}";
         ensure_git_clone "$workspace" $version $repository handheld-multi-modal;
         cd "$workspace"/handheld-multi-modal;
         make setup;
@@ -4736,8 +4736,8 @@ debian_90_install_image_based_video_search ()
     if verify_image_based_video_search && [[ " $* " != *" --reinstall "* ]]; then
         echo "Video Search and Summarization is installed." 1>&2;
     else
-        ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 8000;
+        ensure_ports_open install image_based_video_search "${used_ports[@]}";
         ensure_git_export "$workspace" $version $repository image-based-video-search;
         cd "$workspace"/image-based-video-search/src/dlstreamer-pipeline-server;
         MODELS_PATH="$(pwd)/models";
@@ -4772,8 +4772,8 @@ debian_90_install_live_video_alert_agent ()
     if verify_live_video_alert_agent && [[ " $* " != *" --reinstall "* ]]; then
         echo "Live Video Alert Agent is installed." 1>&2;
     else
-        ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 15000;
+        ensure_ports_open install live_video_alert_agent "${used_ports[@]}";
         ensure_git_clone "$workspace" $version $repository live-video-analysis/live-video-alert-agent;
         verify_live_video_alert_agent;
     fi;
@@ -4789,8 +4789,8 @@ debian_90_install_live_video_captioning ()
     if verify_live_video_captioning && [[ " $* " != *" --reinstall "* ]]; then
         echo "Live Video Captioning is installed." 1>&2;
     else
-        ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 10000;
+        ensure_ports_open install live_video_captioning "${used_ports[@]}";
         ensure_git_clone "$workspace" $version $repository live-video-analysis/live-video-captioning;
         export -n socks_server ftp_proxy;
         cd "$workspace/live-video-analysis/live-video-captioning";
@@ -4812,8 +4812,8 @@ debian_90_install_live_video_captioning_rag ()
     if verify_live_video_captioning_rag && [[ " $* " != *" --reinstall "* ]]; then
         echo "Live Video Captioning RAG is installed." 1>&2;
     else
-        ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 20000;
+        ensure_ports_open install live_video_captioning_rag "${used_ports[@]}";
         ensure_git_clone "$workspace" $version $repository live-video-analysis/live-video-captioning live-video-analysis/live-video-captioning-rag;
         export -n socks_server ftp_proxy;
         cd "$workspace/live-video-analysis/live-video-captioning-rag";
@@ -4836,8 +4836,8 @@ debian_90_install_live_video_search ()
     if verify_live_video_search && [[ " $* " != *" --reinstall "* ]]; then
         echo "Live Video Search is installed." 1>&2;
     else
-        ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 25000;
+        ensure_ports_open install live_video_search "${used_ports[@]}";
         ensure_git_clone "$workspace" $version $repository live-video-analysis/live-video-search;
         verify_live_video_search;
     fi;
@@ -4852,8 +4852,8 @@ debian_90_install_loitering_detection ()
     if verify_loitering_detection && [[ " $* " != *" --reinstall "* ]]; then
         echo "Loitering detection is installed." 1>&2;
     else
-        ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 10000;
+        ensure_ports_open install loitering_detection "${used_ports[@]}";
         ensure_git_export "$workspace" $version $repository metro-vision-ai-app-recipe;
         cd "$workspace/metro-vision-ai-app-recipe";
         sed -i 's|curl |curl -f |' loitering-detection/install.sh;
@@ -4919,9 +4919,9 @@ debian_90_install_multimodal_weld_defect_detection ()
     if verify_multimodal_weld_defect_detection && [[ " $* " != *" --reinstall "* ]]; then
         echo "Multimodal weld defect detection is installed." 1>&2;
     else
-        ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 15000;
         ensure_ram_size 16777216;
+        ensure_ports_open install multimodal_weld_defect_detection "${used_ports[@]}";
         ensure_git_export "$workspace" "$version" "$repository" industrial-edge-insights-multimodal;
         cd "$workspace"/industrial-edge-insights-multimodal;
         cat >> .env <<EOF
@@ -4946,8 +4946,8 @@ debian_90_install_nicu_warmer ()
     if verify_nicu_warmer && [[ " $* " != *" --reinstall "* ]]; then
         echo "NICU Warmer is installed." 1>&2;
     else
-        ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 15000;
+        ensure_ports_open install nicu_warmer "${used_ports[@]}";
         ensure_git_clone "$workspace" $version $repository NICU-Warmer;
         cd "$workspace"/NICU-Warmer;
         sed -i 's|decodebin3 ! .*|decodebin3|' configs/res/all-gpu.env;
@@ -4976,8 +4976,8 @@ debian_90_install_pallet_defect_detection ()
     if verify_pallet_defect_detection && [[ " $* " != *" --reinstall "* ]]; then
         echo "Pallet defect detection is installed." 1>&2;
     else
-        ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 10000;
+        ensure_ports_open install pallet_defect_detection "${used_ports[@]}";
         ensure_git_export "$workspace" $version $repository industrial-edge-insights-vision;
         cd "$workspace"/industrial-edge-insights-vision;
         cat > .env <<EOF
@@ -5009,8 +5009,8 @@ debian_90_install_pcb_anomaly_detection ()
     if verify_pcb_anomaly_detection && [[ " $* " != *" --reinstall "* ]]; then
         echo "PCB anomaly detection is installed." 1>&2;
     else
-        ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 10000;
+        ensure_ports_open install pcb_anomaly_detection "${used_ports[@]}";
         ensure_git_export "$workspace" $version $repository industrial-edge-insights-vision;
         cd "$workspace/industrial-edge-insights-vision";
         cat > .env <<EOF
@@ -5088,6 +5088,7 @@ debian_90_install_physical_ai_studio ()
         echo "Physical AI Studio is installed." 1>&2;
     else
         ensure_disk_size 20000;
+        ensure_ports_open install physical_ai_studio "$pais_port";
         debian_90_stop_physical_ai_studio "$@" || true;
         ensure_rm "$pais_device_file";
         echo "Installing ${pais_pkg}[${pais_extra}]==${pais_version} (PyTorch ${pais_extra} build; this may take a while)...";
@@ -5136,9 +5137,9 @@ debian_90_install_real_time_scene_understanding ()
     if verify_real_time_scene_understanding && [[ " $* " != *" --reinstall "* ]]; then
         echo "Live Video Captioning is installed." 1>&2;
     else
-        ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 64000;
         ensure_ram_size 16777216;
+        ensure_ports_open install real_time_scene_understanding "${used_ports[@]}";
         ensure_git_clone "$workspace" $version $repository live-video-analysis/real-time-scene-understanding;
         cd "$workspace"/live-video-analysis/real-time-scene-understanding;
         ensure_hf_token $(. .env.example; echo "${ALERT_VLM_MODEL/*Qwen3/"Qwen/Qwen3"} ${DEEP_ANALYZER_MODEL/*Qwen3/"Qwen/Qwen3"}");
@@ -5161,6 +5162,7 @@ debian_90_install_scenescape ()
         echo "Scenescape is installed." 1>&2;
     else
         ensure_disk_size 300;
+        ensure_ports_open install scenescape "${used_ports[@]}";
         ensure_git_export "$workspace" "$version" "$repository";
         verify_scenescape;
     fi;
@@ -5174,8 +5176,8 @@ debian_90_install_smart_intersection ()
     if verify_smart_intersection && [[ " $* " != *" --reinstall "* ]]; then
         echo "Smart intersection is installed." 1>&2;
     else
-        ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 1500;
+        ensure_ports_open install smart_intersection "${used_ports[@]}";
         ensure_git_export "$workspace" $version $repository metro-vision-ai-app-recipe;
         cd "$workspace/metro-vision-ai-app-recipe";
         sed -i 's|sudo chown|#sudo chown|' smart-intersection/install.sh;
@@ -5195,8 +5197,8 @@ debian_90_install_smart_kiosk_assistant ()
     if verify_smart_kiosk_assistant && [[ " $* " = *" --reinstall "* ]]; then
         echo "Smart Kiosk Assistant is installed." 1>&2;
     else
-        ensure_ports_open "${used_ports[*]}" debian_90_remove_smart_kiosk_assistant "$@";
         ensure_disk_size 300;
+        ensure_ports_open install smart_kiosk_assistant "${used_ports[@]}";
         ensure_git_clone "$workspace" "$version" "$repository";
         cd "$workspace"/smart-kiosk-assistant;
         . .env.example;
@@ -5223,8 +5225,8 @@ debian_90_install_smart_nvr ()
     if verify_smart_nvr && [[ " $* " != *" --reinstall "* ]]; then
         echo "Smart NVR is installed." 1>&2;
     else
-        ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 3000;
+        ensure_ports_open install smart_nvr "${used_ports[@]}";
         ensure_git_export "$workspace" "$version" "$repository" smart-nvr metro-vision-ai-app-recipe;
     fi;
     echo "@@HIGHLIGHT workspace: $workspace";
@@ -5236,8 +5238,8 @@ debian_90_install_smart_parking ()
     if verify_smart_parking && [[ " $* " != *" --reinstall "* ]]; then
         echo "Smart parking is installed." 1>&2;
     else
-        ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 300;
+        ensure_ports_open install smart_parking "${used_ports[@]}";
         ensure_git_export "$workspace" $version $repository metro-vision-ai-app-recipe;
         cd "$workspace/metro-vision-ai-app-recipe";
         sed -i 's|curl | curl -f |' smart-parking/install.sh;
@@ -5259,7 +5261,7 @@ debian_90_install_smart_traffic_intersection_agent ()
     else
         ensure_disk_size 16000;
         ensure_ram_size 52428800;
-        ensure_ports_open "${used_ports[*]}" return 3;
+        ensure_ports_open install smart_traffic_intersection_agent "${used_ports[@]}";
         ensure_git_export "$workspace" "$version" "$repository" smart-traffic-intersection-agent;
         cd "$workspace"/smart-traffic-intersection-agent;
         . ./setup.sh --setenv;
@@ -5301,8 +5303,8 @@ debian_90_install_take_away ()
     if verify_take_away && [[ " $* " != *" --reinstall "* ]]; then
         echo "Order accuracy Take Away is installed." 1>&2;
     else
-        ensure_ports_open "${used_ports[*]}" return 3;
         ensure_disk_size 10000;
+        ensure_ports_open install take_away "${used_ports[@]}";
         ensure_git_clone "$workspace" $version $repository;
         cd "$workspace"/take-away;
         sed -i 's|^\(# *SAMPLE_VIDEO_DEST=.*\)$|\1|' .env.example;
@@ -5327,7 +5329,7 @@ debian_90_install_uav_mission_compute_sdk ()
     if verify_uav_mission_compute_sdk && [[ " $* " != *" --reinstall "* ]]; then
         echo "UAV mission compute sdk is installed." 1>&2;
     else
-        ensure_ports_open "${used_ports[*]}" return 3;
+        ensure_ports_open install uav_mission_compute_sdk "${used_ports[@]}";
         ensure_git_export "$workspace" "$version" "$repository" uav-mission-compute-sdk;
         cd "$workspace"/uav-mission-compute-sdk;
         make init;
@@ -5398,6 +5400,7 @@ debian_90_install_vippet ()
     if verify_vippet && [[ " $* " != *" --reinstall "* ]]; then
         echo "Vipet is installed." 1>&2;
     else
+        ensure_ports_open install vippet "${used_ports[@]}";
         ensure_git_clone "$workspace" $version $repository tools/visual-pipeline-and-platform-evaluation-tool;
         cd "$workspace/tools/visual-pipeline-and-platform-evaluation-tool";
         make build-onvif-discovery;
@@ -5411,7 +5414,7 @@ debian_90_install_visual_search_question_and_answering ()
         echo "Visual search question and answering is installed." 1>&2;
     else
         ensure_disk_size 8000;
-        ensure_ports_open "${used_ports[*]}" return 3;
+        ensure_ports_open install visual_search_question_and_answering "${used_ports[@]}";
         ensure_git_export "$workspace" $version $repository visual-search-question-and-answering;
         cd "$workspace"/visual-search-question-and-answering/deployment/docker-compose;
         sed -i -e "s|^host_ip=.*|host_ip=$(ensure_ip)|" -e "s|^HOST_IP=.*|HOST_IP=$(ensure_ip)|" env.sh;
@@ -5439,7 +5442,7 @@ debian_90_install_wind_turbine_anomaly_detection ()
     else
         ensure_disk_size 64000;
         ensure_ram_size 16777216;
-        ensure_ports_open "${used_ports[*]}" return 3;
+        ensure_ports_open install wind_turbine_anomaly_detection "${used_ports[@]}";
         ensure_git_export "$workspace" "$version" "$repository" industrial-edge-insights-time-series;
         cd "$workspace"/industrial-edge-insights-time-series;
         cat >> .env <<EOF
@@ -5853,7 +5856,7 @@ debian_90_sbom_stationary_robot_vision ()
 debian_90_start_agentic_predictive_maintenance_pipeline () 
 { 
     configure_agentic_predictive_maintenance_pipeline;
-    ensure_ports_open "${used_ports[*]}" debian_90_stop_agentic_predictive_maintenance_pipeline "$@";
+    ensure_ports_open start agentic_predictive_maintenance_pipeline "${used_ports[@]}";
     local device=$(ensure_select_device "$@");
     [[ " ${*,,} " != *" --$device "* ]] || configure_agentic_predictive_maintenance_pipeline_device "${device^^}";
     cd "$workspace"/agentic-predictive-maintenance-pipeline;
@@ -5865,7 +5868,7 @@ debian_90_start_agentic_predictive_maintenance_pipeline ()
 debian_90_start_agentic_smart_community () 
 { 
     configure_agentic_smart_community;
-    ensure_ports_open "${used_ports[*]}" debian_90_stop_agentic_smart_community "$@";
+    ensure_ports_open start agentic_smart_community "${used_ports[@]}";
     cd "$workspace"/agentic-smart-community;
     bash setup_docker.sh;
     echo "@@HIGHLIGHT UI: http://$(ensure_ip):${used_ports[0]}";
@@ -5876,7 +5879,7 @@ debian_90_start_agentic_smart_community ()
 debian_90_start_dine_in () 
 { 
     configure_dine_in "$@";
-    ensure_ports_open "${ports[*]}" debian_90_stop_dine_in "$@";
+    ensure_ports_open start dine_in "${ports[@]}";
     local device=$(ensure_select_device "$@");
     [[ " ${*,,} " != *" --$device "* ]] || configure_dine_in_device "${device^^}";
     cd "$workspace"/dine-in;
@@ -5891,7 +5894,7 @@ debian_90_start_geti ()
 }
 debian_90_start_handheld_multi_modal () 
 { 
-    ensure_ports_open "${used_ports[*]}" debian_90_stop_handheld_multi_modal $*;
+    ensure_ports_open start handheld_multi_modal "${used_ports[@]}";
     configure_handheld_multi_modal;
     cd "$workspace"/handheld-multi-modal;
     make deploy;
@@ -5901,7 +5904,7 @@ debian_90_start_handheld_multi_modal ()
 debian_90_start_image_based_video_search () 
 { 
     configure_image_based_video_search "$@";
-    ensure_ports_open "${used_ports[*]}" debian_90_stop_image_based_video_search "$@";
+    ensure_ports_open start image_based_video_search "${used_ports[@]}";
     cd "$workspace"/image-based-video-search;
     docker compose up -d;
     echo "@@HIGHLIGHT URL: https://$(ensure_ip):${used_ports[0]}";
@@ -5910,7 +5913,7 @@ debian_90_start_image_based_video_search ()
 debian_90_start_live_video_alert_agent () 
 { 
     configure_live_video_alert_agent;
-    ensure_ports_open "${used_ports[*]}" debian_90_stop_live_video_alert_agent;
+    ensure_ports_open start live_video_alert_agent "${used_ports[@]}";
     local device=$(ensure_select_device "$@");
     [[ " ${*,,} " != *" --$device "* ]] || configure_live_video_alert_agent_device "${device^^}";
     cd "$workspace"/live-video-analysis/live-video-alert-agent;
@@ -5926,7 +5929,7 @@ debian_90_start_live_video_alert_agent ()
 debian_90_start_live_video_captioning () 
 { 
     configure_live_video_captioning;
-    ensure_ports_open "${used_ports[*]}" debian_90_stop_live_video_captioning;
+    ensure_ports_open start live_video_captioning "${used_ports[@]}";
     local device=$(ensure_select_device "$@");
     [[ " ${*,,} " != *" --$device "* ]] || configure_live_video_captioning_device "${device^^}";
     cd "$workspace"/live-video-analysis/live-video-captioning;
@@ -5937,7 +5940,7 @@ debian_90_start_live_video_captioning ()
 debian_90_start_live_video_captioning_rag () 
 { 
     configure_live_video_captioning_rag;
-    ensure_ports_open "${used_ports[*]}" debian_90_stop_live_video_captioning_rag;
+    ensure_ports_open start live_video_captioning_rag "${used_ports[@]}";
     local device=$(ensure_select_device "$@");
     [[ " ${*,,} " != *" --$device "* ]] || configure_live_video_captioning_rag_device "${device^^}";
     cd "$workspace"/live-video-analysis/live-video-captioning-rag;
@@ -5948,7 +5951,7 @@ debian_90_start_live_video_captioning_rag ()
 debian_90_start_live_video_search () 
 { 
     configure_live_video_search;
-    ensure_ports_open "${used_ports[*]}" debian_90_stop_live_video_search;
+    ensure_ports_open start live_video_search "${used_ports[@]}";
     local device=$(ensure_select_device "$@");
     [[ " ${*,,} " != *" --$device "* ]] || configure_live_video_search_device "$device";
     cd "$workspace"/live-video-analysis/live-video-search;
@@ -5962,7 +5965,7 @@ debian_90_start_live_video_search ()
 debian_90_start_loitering_detection () 
 { 
     configure_loitering_detection;
-    ensure_ports_open "${used_ports[*]}" debian_90_stop_loitering_detection;
+    ensure_ports_open start loitering_detection "${used_ports[@]}";
     local device=$(ensure_select_device "$@");
     [[ " ${*,,} " != *" --$device "* ]] || echo "$device" > "$workspace"/.device;
     cd "$workspace"/metro-vision-ai-app-recipe;
@@ -6003,7 +6006,7 @@ debian_90_start_loss_prevention ()
 debian_90_start_multimodal_weld_defect_detection () 
 { 
     configure_multimodal_weld_defect_detection;
-    ensure_ports_open "${used_ports[*]}" debian_90_stop_multimodal_weld_defect_detection "$@";
+    ensure_ports_open start multimodal_weld_defect_detection "${used_ports[@]}";
     local device="$(ensure_select_device "$@")";
     [[ " ${*,,} " != *" --${device} "* ]] || configure_multimodal_weld_defect_detection_device $device;
     cd "$workspace"/industrial-edge-insights-multimodal;
@@ -6072,7 +6075,7 @@ END {
 debian_90_start_nicu_warmer () 
 { 
     configure_nicu_warmer "$@";
-    ensure_ports_open "${used_ports[*]}" debian_90_stop_nicu_warmer;
+    ensure_ports_open start nicu_warmer "${used_ports[@]}";
     local device=$(ensure_select_device "$@");
     [[ " ${*,,} " != *" --$device "* ]] || configure_nicu_warmer_device "$device";
     cd "$workspace"/NICU-Warmer;
@@ -6084,7 +6087,7 @@ debian_90_start_nicu_warmer ()
 debian_90_start_pallet_defect_detection () 
 { 
     configure_pallet_defect_detection;
-    ensure_ports_open "${used_ports[*]}" debian_90_stop_pallet_defect_detection;
+    ensure_ports_open start pallet_defect_detection "${used_ports[@]}";
     local device=$(ensure_select_device "$@");
     [[ " ${*,,} " != *" --$device "* ]] || echo "_$device" > "$workspace"/.device;
     cd "$workspace"/industrial-edge-insights-vision;
@@ -6120,7 +6123,7 @@ debian_90_start_pallet_defect_detection ()
 debian_90_start_pcb_anomaly_detection () 
 { 
     configure_pcb_anomaly_detection;
-    ensure_ports_open "${used_ports[*]}" debian_90_stop_pcb_anomaly_detection;
+    ensure_ports_open start pcb_anomaly_detection "${used_ports[@]}";
     local device=$(ensure_select_device "$@");
     [[ " ${*,,} " != *" --$device "* ]] || echo "_$device" > "$workspace"/.device;
     cd "$workspace"/industrial-edge-insights-vision;
@@ -6146,7 +6149,7 @@ debian_90_start_pcb_anomaly_detection ()
 debian_90_start_physical_ai_studio () 
 { 
     configure_physical_ai_studio;
-    ensure_ports_open "$pais_port" debian_90_stop_physical_ai_studio "$@";
+    ensure_ports_open start physical_ai_studio "$pais_port";
     if [ ! -x "$pais_bin" ]; then
         echo "Physical AI Studio is not installed. Run 'install physical_ai_studio' first." 1>&2;
         return 3;
@@ -6208,7 +6211,7 @@ debian_90_start_post_fusion ()
 debian_90_start_real_time_scene_understanding () 
 { 
     configure_real_time_scene_understanding;
-    ensure_ports_open "${used_ports[*]}" debian_90_stop_real_time_scene_understanding "$@";
+    ensure_ports_open start real_time_scene_understanding "${used_ports[@]}";
     local device=$(ensure_select_device "$@");
     [[ " ${*,,} " != *" --$device "* ]] || configure_real_time_scene_understanding_device "${device^^}";
     cd "$workspace"/live-video-analysis/real-time-scene-understanding;
@@ -6220,7 +6223,7 @@ debian_90_start_real_time_scene_understanding ()
 debian_90_start_scenescape () 
 { 
     configure_scenescape;
-    ensure_ports_open "${used_ports[*]}" debian_90_stop_scenescape "$@";
+    ensure_ports_open start scenescape "${used_ports[@]}";
     cd "$workspace";
     export SUPASS=$(cat /dev/random | tr -dc a-z | head -c 5);
     make init-secrets;
@@ -6232,7 +6235,7 @@ debian_90_start_scenescape ()
 debian_90_start_smart_intersection () 
 { 
     configure_smart_intersection;
-    ensure_ports_open "${used_ports[*]}" debian_90_stop_smart_intersection;
+    ensure_ports_open start smart_intersection "${used_ports[@]}";
     local device=$(ensure_select_device "$@");
     [[ " ${*,,} " != *" --$device "* ]] || configure_smart_intersection_device "$device";
     cd "$workspace"/metro-vision-ai-app-recipe;
@@ -6246,7 +6249,7 @@ debian_90_start_smart_intersection ()
 debian_90_start_smart_kiosk_assistant () 
 { 
     configure_smart_kiosk_assistant;
-    ensure_ports_open "${used_ports[*]}" debian_90_stop_smart_kiosk_assistant "$@";
+    ensure_ports_open start smart_kiosk_assistant "${used_ports[@]}";
     local device=$(ensure_select_device "$@");
     [[ " ${*,,} " != *" --$device "* ]] || configure_smart_kiosk_assistant_device "${device^^}";
     cd "$workspace"/smart-kiosk-assistant;
@@ -6259,6 +6262,7 @@ debian_90_start_smart_kiosk_assistant ()
 debian_90_start_smart_nvr () 
 { 
     configure_smart_nvr "$@";
+    ensure_ports_open start smart_nvr "${used_ports[@]}";
     cd "$workspace"/smart-nvr;
     . setup.sh start;
     echo "@@HIGHLIGHT UI: https://$(ensure_ip):${used_ports[0]}";
@@ -6267,7 +6271,7 @@ debian_90_start_smart_nvr ()
 debian_90_start_smart_parking () 
 { 
     configure_smart_parking;
-    ensure_ports_open "${used_ports[*]}" debian_90_stop_smart_parking "$@";
+    ensure_ports_open start smart_parking "${used_ports[@]}";
     local device=$(ensure_select_device "$@");
     [[ " ${*,,} " != *" --$device "* ]] || echo "$device" > "$workspace"/.device;
     cd "$workspace"/metro-vision-ai-app-recipe;
@@ -6291,7 +6295,7 @@ debian_90_start_smart_parking ()
 debian_90_start_smart_traffic_intersection_agent () 
 { 
     configure_smart_traffic_intersection_agent "$@";
-    ensure_ports_open "${used_ports[*]}" debian_90_stop_smart_traffic_intersection_agent "$@";
+    ensure_ports_open start smart_traffic_intersection_agent "${used_ports[@]}";
     [ ! -r "$workspace"/.device ] || set -- "$@" "$(< "$workspace"/.device)";
     local device=$(ensure_select_device "$@");
     export VLM_TARGET_DEVICE=${device^^};
@@ -6305,7 +6309,7 @@ debian_90_start_smart_traffic_intersection_agent ()
 debian_90_start_take_away () 
 { 
     configure_take_away "$@";
-    ensure_ports_open "${used_ports[*]}" debian_90_stop_take_away "$@";
+    ensure_ports_open start take_away "${used_ports[@]}";
     local device=$(ensure_select_device "$@");
     [[ " ${*,,} " != *" --$device "* ]] || configure_take_away_device "${device^^}";
     cd "$workspace"/take-away;
@@ -6316,8 +6320,8 @@ debian_90_start_take_away ()
 }
 debian_90_start_uav_mission_compute_sdk () 
 { 
-    ensure_ports_open "${used_ports[*]}" debian_90_stop_uav_mission_compute_sdk "$@";
     configure_uav_mission_compute_sdk;
+    ensure_ports_open start uav_mission_compute_sdk "${used_ports[@]}";
     cd "$workspace"/uav-mission-compute-sdk;
     . .env;
     make up-$PROFILE;
@@ -6344,8 +6348,8 @@ debian_90_start_video_processing_for_nvr ()
 }
 debian_90_start_vippet () 
 { 
-    ensure_ports_open "80 7860 8000 9090 8554 8889" debian_90_stop_vippet;
     configure_vippet;
+    ensure_ports_open start vippet "${used_ports[@]}";
     cd "$workspace/tools/visual-pipeline-and-platform-evaluation-tool";
     make run;
     echo "@@HIGHLIGHT URL: http://$(ensure_ip)"
@@ -6353,7 +6357,7 @@ debian_90_start_vippet ()
 debian_90_start_visual_search_question_and_answering () 
 { 
     configure_visual_search_question_and_answering "$@";
-    ensure_ports_open "${used_ports[*]}" debian_90_stop_visual_search_question_and_answering "$@";
+    ensure_ports_open start visual_search_question_and_answering "${used_ports[@]}";
     cd "$workspace"/visual-search-question-and-answering/deployment/docker-compose;
     . ./env.sh;
     docker compose -f compose_milvus.yaml up -d;
@@ -6364,7 +6368,7 @@ debian_90_start_visual_search_question_and_answering ()
 debian_90_start_wind_turbine_anomaly_detection () 
 { 
     configure_wind_turbine_anomaly_detection;
-    ensure_ports_open "${used_ports[*]}" debian_90_stop_wind_turbine_anomaly_detection "$@";
+    ensure_ports_open start wind_turbine_anomaly_detection "${used_ports[@]}";
     local device=$(ensure_select_device "$@");
     [[ " ${*,,} " != *" --${device} "* ]] || configure_wind_turbine_anomaly_detection_device "$device";
     cd "$workspace"/industrial-edge-insights-time-series;
@@ -6626,8 +6630,7 @@ debian_90_stop_video_processing_for_nvr ()
 debian_90_stop_vippet () 
 { 
     configure_vippet;
-    cd "$workspace/tools/visual-pipeline-and-platform-evaluation-tool";
-    make stop || true
+    cd "$workspace/tools/visual-pipeline-and-platform-evaluation-tool" && make stop || true
 }
 debian_90_stop_visual_search_question_and_answering () 
 { 
@@ -7086,30 +7089,42 @@ ensure_osrf_gazebo_ros2 ()
 }
 ensure_ports_open () 
 { 
-    local ports="$1" out;
-    shift;
-    for port in $ports;
-    do
-        if command -v ss > /dev/null; then
-            out="$(ss -Hltn "sport = :$port")" || continue;
+    local act_name="${1:?}";
+    local name="${2:?}";
+    shift 2;
+    if [ "$act_name" = "start" ]; then
+        ensure_prop set started/$name/ports "$*";
+    fi;
+    if command -v ss > /dev/null; then
+        local port out;
+        for port in $*;
+        do
+            out="$(ss -Hltunp "sport = :$port")";
             [ -n "$out" ] || continue;
-            printf "${red}port %s occupied${reset}\n%s\n" "$port" "$out" 1>&2;
-            "$@" || true;
-            [ -n "$(ss -Hltn "sport = :$port")" ] || continue;
-        else
-            if command -v lsof > /dev/null; then
-                ensure_sudo lsof -nP -i TCP:$port -s TCP:LISTEN || continue;
-                printf "${red}port %s occupied${reset}\n" "$port" 1>&2;
-                "$@" || true;
-                ensure_sudo lsof -nP -i TCP:$port -s TCP:LISTEN || continue;
-            else
-                echo "Missing ss or lsof" 1>&2;
-                return 1;
-            fi;
-        fi;
-        echo "TCP port $port is occupied" 1>&2;
-        return 3;
-    done
+            printf "${red}port %s is occupied${reset}\n" "$port" 1>&2;
+            local started_path="$(ensure_project_path)/${installer_name:?}/started" kpath mname;
+            for kpath in $(ensure_prop find "started/*/ports");
+            do
+                local mname="$(echo "$kpath" | cut -f2 -d/)";
+                if [[ " $(ensure_prop get "$kpath") " = *" $port "* ]]; then
+                    local stopper="${_act_cache_functions[stop_$mname]:-}";
+                    if [ -n "$stopper" ]; then
+                        printf "${red}Stopping $mname to release port %s${reset}\n" "$port" 1>&2;
+                        ( set -e;
+                        $stopper "$mname" -- ) 1>&2 || true;
+                        break;
+                    fi;
+                fi;
+            done;
+            out="$(ss -Hltunp "sport = :$port")";
+            [ -n "$out" ] || continue;
+            printf "${red}port %s is occupied${reset}\n%s\n" "$port" "$out" 1>&2;
+            return 3;
+        done;
+    else
+        printf "${red}Missing ss on the system${reset}\n" 1>&2;
+        return 1;
+    fi
 }
 ensure_project_path () 
 { 
@@ -7117,17 +7132,23 @@ ensure_project_path ()
 }
 ensure_prop () 
 { 
-    local op=$1 key_path=$2 value="${3:-}";
-    local f="$(ensure_project_path)/${installer_name:?}/${key_path:?}";
+    local op="$1" key_path="${2:?}" value="${3:-}";
+    local key_base="$(ensure_project_path)/${installer_name:?}";
     case "$op" in 
         set)
-            mkdir -p "$(dirname "$f")" && printf '%s' "$value" > "$f"
+            printf '%s' "$value" > "$key_base/$key_path"
         ;;
         get)
-            [ -r "$f" ] && cat "$f" || printf '%s' "$value"
+            [ -r "$key_base/$key_path" ] && cat "$key_base/$key_path" || printf '%s' "$value"
         ;;
-        remove)
-            [ ! -r "$f" ] || rm -f "$f"
+        find)
+            ( cd "$key_base" && find . -ipath "./$key_path" -print 2> /dev/null | cut -f2- -d/ )
+        ;;
+        create)
+            mkdir -p "$key_base/${key_path%/*}"
+        ;;
+        destroy)
+            [ ! -r "$key_base/$key_path" ] || rm -f "$key_base/$key_path"
         ;;
     esac
 }
@@ -7222,7 +7243,8 @@ ensure_sudo ()
                 sleep 60;
                 sudo -n -v 2> /dev/null || break;
             done;
-            ensure_prop remove pids/sudo/pid$ppid ) < /dev/null > /dev/null 2>&1 & pid=$!;
+            ensure_prop destroy pids/sudo/pid$ppid ) < /dev/null > /dev/null 2>&1 & pid=$!;
+            ensure_prop create pids/sudo/pid$ppid;
             ensure_prop set pids/sudo/pid$ppid "$pid";
             disown $pid;
         fi;
@@ -7307,9 +7329,8 @@ install_geti ()
     if verify_geti && [[ " $* " != *" --reinstall "* ]]; then
         echo "Geti is installed." 1>&2;
     else
-        ensure_ports_open "$port" docker rm -f geti-app || true;
-        ensure_ports_open "$port" return 3;
         ensure_disk_size 20000;
+        ensure_ports_open install geti "$port";
         docker pull $image_name;
     fi
 }
@@ -7356,7 +7377,7 @@ sbom_osrf_gazebo_ros2 ()
 start_geti () 
 { 
     configure_geti "$@";
-    ensure_ports_open "$port" stop_geti;
+    ensure_ports_open start geti "$port";
     mkdir -p "$workspace"/geti-data;
     docker run --rm --name geti-app -d -v "$workspace"/geti-data:/application/data:rw -e HOST=0.0.0.0 -e PORT=$port -p $port:$port -e http_proxy -e https_proxy -e no_proxy -e HTTP_PROXY -e HTTPS_PROXY -e NO_PROXY $([ ! -d /dev/dri ] || echo "--device /dev/dri:/dev/dri") --group-add $(getent group render | cut -d: -f3 || echo 992) --group-add $(id -g) --shm-size 8g $image_name;
     echo "@@HIGHLIGHT URL: http://$(ensure_ip):$port";
