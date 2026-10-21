@@ -1,7 +1,7 @@
 {
   "metadata": {
     "skill_name": "text-to-speech-user",
-    "skill_path": "/home/vinod/repos/edge-ai-libraries/microservices/text-to-speech/.github/skills/text-to-speech-user",
+    "skill_path": ".github/skills/text-to-speech-user",
     "executor_model": "claude-sonnet-5.5",
     "analyzer_model": "<model-name>",
     "timestamp": "2026-10-21T10:06:38Z",

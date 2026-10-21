@@ -1,7 +1,7 @@
 {
   "metadata": {
     "skill_name": "audio-analyzer-user",
-    "skill_path": "/home/vinod/repos/edge-ai-libraries/microservices/audio-analyzer/.github/skills/audio-analyzer-user",
+    "skill_path": ".github/skills/audio-analyzer-user",
     "executor_model": "claude-sonnet-5.5",
     "analyzer_model": "<model-name>",
     "timestamp": "2026-10-21T10:19:58Z",
