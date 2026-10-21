@@ -2557,6 +2557,16 @@ configure_mediamtx ()
     repository="https://github.com/bluenviron/mediamtx/releases/download/v${version}/mediamtx_v${version}_linux_amd64.tar.gz";
     bin_path="/usr/local/bin"
 }
+configure_multi_modal_patient_monitoring () 
+{ 
+    workspace="$(ensure_project_path)/multi-modal-patient-monitoring";
+    version=4a9679b58090cd86d56d91e1e72cab462babfe31;
+    repository=https://github.com/open-edge-platform/health-and-life-sciences-ai-suite.git;
+    workspace_mdpnp="$workspace"/multi_modal_patient_monitoring/services/mdpnp/mdpnp;
+    version_mdpnp=master;
+    repository_mdpnp=https://github.com/mdpnp/mdpnp.git;
+    used_ports=(3000)
+}
 configure_multimodal_weld_defect_detection () 
 { 
     workspace="$(ensure_project_path)/multimodal-weld-defect-detection";
@@ -2945,6 +2955,13 @@ configure_stationary_robot_vision ()
         ;;
     esac;
     rvc_pkgs=("ros-$ros_distro-rvc-simulation")
+}
+configure_surgical_instrument () 
+{ 
+    workspace="$(ensure_project_path)/surgical-instrument";
+    version="5bf04485b67cda526a1dbd8435141733e05fd61a";
+    repository="https://github.com/open-edge-platform/health-and-life-sciences-ai-suite.git";
+    used_ports=(3000)
 }
 configure_take_away () 
 { 
@@ -5042,6 +5059,36 @@ EOF
     echo "@@HIGHLIGHT $installer_name start --lp";
     echo "@@HIGHLIGHT $installer_name start --lpvlm"
 }
+debian_90_install_multi_modal_patient_monitoring () 
+{ 
+    configure_multi_modal_patient_monitoring;
+    if verify_multi_modal_patient_monitoring && [[ " $* " != *" --reinstall "* ]]; then
+        echo "Multi Modal Patient Monitoring is installed" 1>&2;
+    else
+        ensure_disk_size 50000;
+        ensure_ports_open install multi_modal_patient_monitoring "${used_ports[@]}";
+        ensure_git_export "$workspace" "$version" "$repository" multi_modal_patient_monitoring;
+        rm -rf "$workspace_mdpnp";
+        ensure_git_export "$workspace_mdpnp" "$version_mdpnp" "$repository_mdpnp";
+        cd "$workspace"/multi_modal_patient_monitoring;
+        mkdir -p models/downloads/rppg;
+        ensure_fetch https://github.com/xliucs/MTTS-CAN/raw/main/mtts_can.hdf5 models/downloads/rppg/mtts_can.hdf5;
+        mkdir -p models/downloads/3d-pose;
+        ensure_fetch https://storage.openvinotoolkit.org/repositories/open_model_zoo/public/2022.1/human-pose-estimation-3d-0001/human-pose-estimation-3d.tar.gz models/downloads/3d-pose/human-pose-estimation-3d.tar.gz;
+        mkdir -p models/downloads/ai-ecg;
+        python3 -m venv hf-venv;
+        . hf-venv/bin/activate;
+        pip install huggingface_hub;
+        hf download Edoardo-BS/hubert-ecg-small --local-dir models/downloads/ai-ecg/hubert-ecg-small;
+        verify_multi_modal_patient_monitoring;
+    fi;
+    local device="$(ensure_select_device "$@")";
+    echo "${device^^}" > "$workspace"/multi_modal_patient_monitoring/.device;
+    echo "@@HIGHLIGHT workspace: $workspace";
+    echo "@@HIGHLIGHT $installer_name install [--gpu|npu|cpu]";
+    echo "@@HIGHLIGHT $installer_name start [--gpu|npu|cpu]";
+    echo "$$HIGHLIGHT $installer_name remove"
+}
 debian_90_install_multimodal_weld_defect_detection () 
 { 
     configure_multimodal_weld_defect_detection;
@@ -5426,6 +5473,26 @@ debian_90_install_stationary_robot_vision ()
     echo "@@HIGHLIGHT shell env @source /opt/ros/$ros_distro/setup.bash";
     echo "@@HIGHLIGHT docs @https://docs.openedgeplatform.intel.com/dev/edge-ai-suites/robotics-ai-suite/rvc/index.html"
 }
+debian_90_install_surgical_instrument () 
+{ 
+    configure_surgical_instrument;
+    if verify_surgical_instrument && [[ " $* " = *" --reinstall "* ]]; then
+        echo "Surgical Instrument is installed" 1>&2;
+    else
+        ensure_disk_size 70000;
+        ensure_ports_open install surgical_instrument "${used_ports[@]}";
+        ensure_git_export "$workspace" "$version" "$repository" surgical-instrument;
+        cd "$workspace"/surgical-instrument;
+        make download-dataset;
+        make prepare-dataset MAX_POS_PER_VIDEO=800;
+        make backend-venv;
+        make backend-bootstrap;
+        .venv-backend/bin/python scripts/create_endoscopy_video.py --images-dir datasets/REAL-Colon/raw/001-001_frames --output videos/polyp_test.mp4 --seconds 60 --fps 60 --width 1920 --height 1080;
+        verify_surgical_instrument;
+    fi;
+    echo "@@HIGHLIGHT workspace: $workspace";
+    echo "@@HIGHLIGHT $installer_name start|remove"
+}
 debian_90_install_take_away () 
 { 
     configure_take_away;
@@ -5662,6 +5729,10 @@ debian_90_profile_loss_prevention ()
 { 
     echo "git curl gawk make python3_venv docker_io edge_base"
 }
+debian_90_profile_multi_modal_patient_monitoring () 
+{ 
+    echo "git python3_venv docker_io make edge_base"
+}
 debian_90_profile_multimodal_weld_defect_detection () 
 { 
     echo "git gawk curl make docker_io edge_base"
@@ -5721,6 +5792,10 @@ debian_90_profile_smart_traffic_intersection_agent ()
 debian_90_profile_stationary_robot_vision () 
 { 
     echo "git curl edge_base_robotics"
+}
+debian_90_profile_surgical_instrument () 
+{ 
+    echo "edge_base docker_io git make python3_venv gnupg2 wget"
 }
 debian_90_profile_take_away () 
 { 
@@ -5835,6 +5910,11 @@ debian_90_remove_loss_prevention ()
     cd "$workspace" && make down-lp || true;
     ensure_rm "$workspace"
 }
+debian_90_remove_multi_modal_patient_monitoring () 
+{ 
+    debian_90_stop_multi_modal_patient_monitoring "$@";
+    ensure_rm "$workspace"
+}
 debian_90_remove_multimodal_weld_defect_detection () 
 { 
     debian_90_stop_multimodal_weld_defect_detection "$@";
@@ -5922,6 +6002,11 @@ debian_90_remove_stationary_robot_vision ()
     else
         echo "Stationary Robot Vision & Control already removed. Skipping";
     fi
+}
+debian_90_remove_surgical_instrument () 
+{ 
+    configure_surgical_instrument;
+    ensure_rm "$workspace"
 }
 debian_90_remove_take_away () 
 { 
@@ -6131,6 +6216,23 @@ debian_90_start_loss_prevention ()
     echo "@@HIGHLIGHT $installer_name start --lp";
     echo "@@HIGHLIGHT $installer_name start --lpvlm";
     echo "@@HIGHLIGHT $installer_name remove"
+}
+debian_90_start_multi_modal_patient_monitoring () 
+{ 
+    configure_multi_modal_patient_monitoring;
+    ensure_ports_open start multi_modal_patient_monitoring "${used_ports[@]}";
+    cd "$workspace"/multi_modal_patient_monitoring;
+    local device="$(ensure_select_device "$@")" d;
+    [[ " ${*,,} " != *" --$device "* ]] || echo "${device^^}" > .device;
+    device="$(< .device)";
+    for d in ECG_DEVICE RPPG_DEVICE MDPNP_DEVICE POST_3D_DEVICE;
+    do
+        sed -i "s|^$d=.*|$d=$device|" configs/device.env;
+    done;
+    make run;
+    echo "@@HIGHLIGHT UI: http://$(ensure_ip):${used_ports[0]}";
+    echo "@@HIGHLIGHT $installer_name start [--gpu|npu|cpu]";
+    echo "$$HIGHLIGHT $installer_name stop|remove"
 }
 debian_90_start_multimodal_weld_defect_detection () 
 { 
@@ -6435,6 +6537,16 @@ debian_90_start_smart_traffic_intersection_agent ()
     echo "@@HIGHLIGHT start [--gpu|npu|cpu]";
     echo "@@HIGHLIGHT $installer_name remove"
 }
+debian_90_start_surgical_instrument () 
+{ 
+    configure_surgical_instrument;
+    ensure_ports_open start surgical_instrument "${used_ports[@]}";
+    cd "$workspace"/surgical-instrument;
+    make doctor;
+    make up LOWLATENCY=1 CAMERA_TRIGGER=vsync VSYNC_DIVISOR=2 SERIAL=1234567890;
+    echo "@@HIGHLIGHT workspace: $workspace";
+    echo "@@HIGHLIGHT $installer_name remove"
+}
 debian_90_start_take_away () 
 { 
     configure_take_away "$@";
@@ -6634,6 +6746,11 @@ debian_90_stop_loitering_detection ()
     ./sample_stop.sh || true;
     docker compose -f compose-without-scenescape.yml down -v --remove-orphans || true
 }
+debian_90_stop_multi_modal_patient_monitoring () 
+{ 
+    configure_multi_modal_patient_monitoring;
+    cd "$workspace"/multi_modal_patient_monitoring && docker compose down -v --remove-orphans || true
+}
 debian_90_stop_multimodal_weld_defect_detection () 
 { 
     configure_multimodal_weld_defect_detection;
@@ -6801,7 +6918,7 @@ debian_99_profile_federal_and_aerospace_ai_suite ()
 }
 debian_99_profile_health_and_life_science_ai_suite () 
 { 
-    [ "$1" = "start" ] || echo "nicu_warmer"
+    [ "$1" = "start" ] || echo "nicu_warmer surgical_instrument multi_modal_patient_monitoring"
 }
 debian_99_profile_inferencing () 
 { 
@@ -8267,6 +8384,25 @@ verify_loss_prevention ()
 { 
     [ -e "$workspace"/src/.env ] && [ -e "$workspace"/Makefile ]
 }
+verify_multi_modal_patient_monitoring () 
+{ 
+    [ -e "$workspace"/multi_modal_patient_monitoring/services/mdpnp/mdpnp/gradlew ] || { 
+        echo "Missing mdpnp" 1>&2;
+        return 1
+    };
+    [ -e "$workspace"/multi_modal_patient_monitoring/models/downloads/rppg/mtts_can.hdf5 ] || { 
+        echo "Missing mtts_can.hdf5" 1>&2;
+        return 1
+    };
+    [ -e "$workspace"/multi_modal_patient_monitoring/models/downloads/3d-pose/human-pose-estimation-3d.tar.gz ] || { 
+        echo "Missing human-pose-estimation-3d.tar.gz" 1>&2;
+        return 1
+    };
+    [ -e "$workspace"/multi_modal_patient_monitoring/models/downloads/ai-ecg/hubert-ecg-small/model.safetensors ] || { 
+        echo "Missing hubert-ecg-small" 1>&2;
+        return 1
+    }
+}
 verify_multimodal_weld_defect_detection () 
 { 
     configure_multimodal_weld_defect_detection;
@@ -8443,6 +8579,17 @@ verify_stationary_robot_vision ()
 { 
     configure_stationary_robot_vision;
     ensure_apt_is_installed "${rvc_pkgs[@]}"
+}
+verify_surgical_instrument () 
+{ 
+    [ -e "$workspace"/surgical-instrument/videos/polyp_test.mp4 ] || { 
+        echo "Missing polyp_test.mp4" 1>&2;
+        return 1
+    };
+    [ -e "$workspace"/surgical-instrument/models/yolo11n_polyp/best_openvino_model/best.xml ] || { 
+        echo "Missing yolo11n_polyp" 1>&2;
+        return 1
+    }
 }
 verify_take_away () 
 { 
