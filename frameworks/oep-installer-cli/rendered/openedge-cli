@@ -4522,7 +4522,8 @@ debian_70_remove_nodejs ()
 debian_70_remove_openvino () 
 { 
     [ "$(ensure_prop get installed/openvino/owned)" = "true" ] || return 0;
-    ensure_apt purge --auto-remove -y $(dpkg -l | grep openvino | awk '{print$2}') || true
+    ensure_apt purge --auto-remove -y $(dpkg -l | grep openvino | awk '{print$2}') || true;
+    ensure_rm "$workspace"
 }
 debian_70_remove_time_confighub () 
 { 
@@ -7593,7 +7594,8 @@ install_geti ()
 remove_geti () 
 { 
     stop_geti "$@";
-    docker image rm -f $image_name || true
+    docker image rm -f $image_name || true;
+    ensure_rm "$workspace"
 }
 remove_oneapi_ros_openvino () 
 { 

@@ -3209,7 +3209,8 @@ install_geti ()
 remove_geti () 
 { 
     stop_geti "$@";
-    docker image rm -f $image_name || true
+    docker image rm -f $image_name || true;
+    ensure_rm "$workspace"
 }
 start_geti () 
 { 
