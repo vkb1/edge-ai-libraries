@@ -471,6 +471,9 @@ act_panelled_logs ()
     NARROW_GLYPHS=${NARROW_GLYPHS:-0};
     FAIL_ROWS=${FAIL_ROWS:-20};
     RAISE_MS=${RAISE_MS:-15};
+    STEP_MIN=${STEP_MIN:-12};
+    STEP_TEXT="";
+    declare -a STEP_RX=() STEP_FMT=();
     readonly CSI_FINAL='[A-Za-z@\[\\\]^_`{|}~]';
     readonly SEP_W=3;
     declare -a ORDER=();
@@ -1248,6 +1251,68 @@ act_panelled_logs ()
         LDIRTY[$c]=1;
         LEFT_VALID=0
     };
+    function _set_step () 
+    { 
+        STEP_TEXT=$1
+    };
+    function _clear_step () 
+    { 
+        STEP_TEXT=""
+    };
+    function _add_step_rule () 
+    { 
+        local spec=$1 rx fmt;
+        [[ $spec == *' @@THEN '* ]] || return 1;
+        rx=${spec%%' @@THEN '*};
+        fmt=${spec#*' @@THEN '};
+        [[ -z $rx ]] && return 1;
+        [[ x =~ $rx ]];
+        (( $? == 2 )) && return 1;
+        STEP_RX+=("$rx");
+        STEP_FMT+=("$fmt")
+    };
+    function _clear_step_rules () 
+    { 
+        STEP_RX=();
+        STEP_FMT=()
+    };
+    function _apply_step_rules () 
+    { 
+        (( ${#STEP_RX[@]} == 0 )) && return 1;
+        local s=$1 i j out;
+        for ((i = 0; i < ${#STEP_RX[@]}; i++ ))
+        do
+            if [[ $s =~ ${STEP_RX[i]} ]]; then
+                out=${STEP_FMT[i]};
+                for ((j = ${#BASH_REMATCH[@]} - 1; j >= 0; j-- ))
+                do
+                    out=${out//"\\$j"/"${BASH_REMATCH[j]}"};
+                done;
+                _set_step "$out";
+                return 0;
+            fi;
+        done;
+        return 1
+    };
+    TITLEROW="";
+    function _title_row () 
+    { 
+        local w=$1 tw sw room left;
+        _fit_v "$w" "$TITLE" 1;
+        TITLEROW="${C_BOLD}${FITTED}${C_RESET}";
+        [[ -z $STEP_TEXT ]] && return;
+        _dwidth "$TITLE";
+        tw=$REPLY;
+        room=$(( w - tw - 3 ));
+        (( room < STEP_MIN )) && return;
+        _dwidth "$STEP_TEXT";
+        sw=$REPLY;
+        (( sw > room )) && sw=$room;
+        _fit_v $(( w - sw - 1 )) "$TITLE" 1;
+        left=$FITTED;
+        _fit_v "$sw" "$STEP_TEXT" 1;
+        TITLEROW="${C_BOLD}${left}${C_RESET}${C_CYAN}${FITTED}${C_RESET} "
+    };
     function _ensure_wrap () 
     { 
         local c=$1 w=$2 src r;
@@ -1576,8 +1641,8 @@ act_panelled_logs ()
             FULL_CLEAR=0;
         fi;
         _title_text "$REVIEW" "$TITLE_WORD";
-        _fit_v "$usable" "$TITLE" 1;
-        rowstr="${C_BOLD}${FITTED}${C_RESET}";
+        _title_row "$usable";
+        rowstr=$TITLEROW;
         if [[ ${PREV[0]:-__} != "$rowstr" ]]; then
             out+='[1;1H'"$rowstr"'[K';
             PREV[0]=$rowstr;
@@ -1735,8 +1800,28 @@ act_panelled_logs ()
         rest=${plainkey#"$key"};
         rest=${rest#"${rest%%[![:space:]]*}"};
         case ${key^^} in 
+            @@HINT)
+                if [[ -z $rest ]]; then
+                    _clear_step;
+                else
+                    if [[ $rest == '@@IF' ]]; then
+                        _clear_step_rules;
+                    else
+                        if [[ $rest == '@@IF '*' @@THEN '* ]]; then
+                            _add_step_rule "${rest#@@IF }" || _push_log "${CURRENT:-general}" "invalid @@HINT rule: $rest";
+                            return;
+                        else
+                            _set_step "$rest";
+                        fi;
+                    fi;
+                fi;
+                _draw 1;
+                return
+            ;;
             @@COMP)
                 [[ -z $rest ]] && return;
+                _clear_step;
+                _clear_step_rules;
                 if [[ -n $CURRENT && $CURRENT != "$rest" && -z ${REPORT[$CURRENT]:-} ]]; then
                     _timer_stop "$CURRENT";
                 fi;
@@ -1754,6 +1839,7 @@ act_panelled_logs ()
             ;;
             @@REPORT)
                 [[ -z $rest ]] && return;
+                _clear_step;
                 if [[ -n $CURRENT && -z ${REPORT[$CURRENT]:-} ]]; then
                     _timer_stop "$CURRENT";
                 fi;
@@ -1780,6 +1866,7 @@ act_panelled_logs ()
             @@OK | @@FAIL)
                 target=${rest:-$CURRENT};
                 [[ -z $target ]] && return;
+                _clear_step;
                 _touch_comp "$target";
                 if [[ ${key^^} == @@OK ]]; then
                     STATUS[$target]="ok";
@@ -1815,6 +1902,7 @@ act_panelled_logs ()
             _touch_comp "$CURRENT";
             _timer_start "$CURRENT";
         fi;
+        _apply_step_rules "$plainkey";
         _push_log "$CURRENT" "$clean";
         _draw
     };
@@ -1852,6 +1940,7 @@ act_panelled_logs ()
         [[ -n $c ]] && LDIRTY[$c]=1;
     done;
     REVIEW=1;
+    _clear_step;
     _draw 1 )
 }
 act_panelled_logs_askpass () 
