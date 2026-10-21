@@ -396,12 +396,7 @@ act_helper ()
                         [[ " $* " = *" --continue "* ]] || break;
                     fi;
                 fi;
-            done;
-            local scan_handler="${_act_cache_functions[${act_name}_pre_system_scan]:-}";
-            if [[ " $* " != *" --dry-run "* && $rc -eq 0 && -n "$scan_handler" && " ${handles[*]} " = *" $scan_handler "* ]]; then
-                echo "@@REPORT SYSTEM SUMMARY";
-                $scan_handler $(act_extract_args $act_name pre_system_scan "${handles[*]#${installer_family}_*_${act_name}_}" "$@");
-            fi
+            done
         } > >(LOG_FILE="$(ensure_project_path)/$installer_name/$(date +%m-%d-%Y).logs"
 mkdir -p "$(dirname "$LOG_FILE")"
 echo "========== $(date -Ins) ==========" >> "$LOG_FILE"
@@ -3132,11 +3127,11 @@ debian_05_sbom_pciutils ()
 { 
     ensure_sbom_format pkg-list pciutils
 }
-debian_08_install_pre_system_scan () 
+debian_08_install_system_inspection () 
 { 
-    system_scan_summary_report
+    install_system_inspection
 }
-debian_08_profile_pre_system_scan () 
+debian_08_profile_system_inspection () 
 { 
     [ "$1" != "install" ] || echo "curl dmidecode pciutils"
 }
@@ -5687,12 +5682,12 @@ debian_90_profile_edge_base_robotics ()
 { 
     case "$1" in 
         bootstrap)
-            echo "core_types pre_system_scan edge_pack_base_standard edge_pack_base_realtime edge_pack_npu gpu_accel npu_accel ros2 ros_openvino realsense"
+            echo "core_types system_inspection system_summary edge_pack_base_standard edge_pack_base_realtime edge_pack_npu gpu_accel npu_accel ros2 ros_openvino realsense"
         ;;
         *)
             echo "ros2 ros_openvino realsense";
             if [[ " $* " = *" --realtime "* ]] && [[ "$(uname -r)" = "7."* ]]; then
-                echo "core_types pre_system_scan edge_pack_base_realtime edge_pack_npu";
+                echo "core_types system_inspection system_summary edge_pack_base_realtime edge_pack_npu";
             else
                 echo "edge_base";
             fi
@@ -6908,6 +6903,11 @@ debian_90_stop_wind_turbine_anomaly_detection ()
     configure_wind_turbine_anomaly_detection;
     cd "$workspace"/industrial-edge-insights-time-series && make down || true
 }
+debian_99_install_system_summary () 
+{ 
+    echo "@@REPORT SYSTEM SUMMARY";
+    install_system_inspection "$@"
+}
 debian_99_profile_computer_vision () 
 { 
     [ "$1" = "start" ] || echo "dlstreamer vippet geti anomalib"
@@ -6916,10 +6916,10 @@ debian_99_profile_edge_base ()
 { 
     case "$1" in 
         bootstrap)
-            echo "core_types pre_system_scan edge_pack_base_standard edge_pack_npu gpu_accel npu_accel"
+            echo "core_types system_inspection system_summary edge_pack_base_standard edge_pack_npu gpu_accel npu_accel"
         ;;
         *)
-            echo "core_types pre_system_scan";
+            echo "core_types system_inspection system_summary";
             if [[ " $* " = *" --edgepack "* ]] && [[ "$(uname -r)" = "7."* ]]; then
                 echo "edge_pack_base_standard edge_pack_npu";
             else
@@ -6958,6 +6958,11 @@ debian_99_profile_retail_ai_suite ()
 debian_99_profile_robotics_ai_suite () 
 { 
     [ "$1" = "start" ] || echo "autonomous_mobile_robot stationary_robot_vision humanoid_imitation_learning physical_ai_framework physical_ai_studio"
+}
+debian_99_profile_system_summary () 
+{ 
+    [ "$1" != "bootstrap" ] || echo "system_inspection curl dmidecode pciutils";
+    [ "$1" != "install" ] || echo "curl dmidecode pciutils"
 }
 ensure_apt () 
 { 
@@ -7591,6 +7596,72 @@ install_geti ()
         docker pull $image_name;
     fi
 }
+install_system_inspection () 
+{ 
+    set -o pipefail;
+    ( echo "----------------------------------------------------------------";
+    ok="${green}✓  PASS${reset}";
+    nok="${red}⚠  MSG${reset}";
+    system_summary="$(system_scan_get_system_summary)";
+    echo "System|$system_summary";
+    pass=$ok;
+    membank_info="$(ensure_prop get installed/system_inspection/membank)";
+    [ -n "$membank_info" ] || membank_info="$(system_scan_check_membank)";
+    [ -z "$membank_info" ] || ensure_prop set installed/system_inspection/membank "$membank_info";
+    [ "$membank_info" = "DUAL/MULTI-CHANNELS" ] || pass="${nok/MSG/Check Memory}";
+    echo -e "RAM|$membank_info|$pass";
+    [ "$pass" = "$ok" ] || echo -e "@@HIGHLIGHT RAM|$membank_info|$pass" 1>&2;
+    case "$PRETTY_NAME" in 
+        *"24.04"* | *"26.04"* | *"Red Hat Enterprise"*)
+            pass=$ok
+        ;;
+        *)
+            pass="${nok/MSG/Not supported}"
+        ;;
+    esac;
+    echo -e "OS|$PRETTY_NAME|$pass";
+    [ "$pass" = "$ok" ] || echo -e "@@HIGHLIGHT OS|$PRETTY_NAME|$pass" 1>&2;
+    pass=$ok;
+    docker_ver="$(system_scan_check_docker)";
+    [[ "$docker_ver" = *Compose* ]] || pass="${nok/MSG/Missing Docker Compose}";
+    [ -n "$docker_ver" ] || pass="${nok} Missing Docker";
+    echo -e "Docker|$docker_ver|$pass";
+    [ "$pass" = "$ok" ] || echo -e "@@HIGHLIGHT Docker|$docker_ver|$pass" 1>&2;
+    net_pass=$ok;
+    net_access="$(system_scan_check_network_access)";
+    [[ "$net_access" = *reachable* ]] || net_pass="${nok/MSG/Check Proxies}";
+    echo -e "Network|$net_access|$net_pass";
+    [ "$net_pass" = "$ok" ] || echo -e "@@HIGHLIGHT Network|$net_access|$net_pass" 1>&2;
+    echo;
+    echo "Accelerators:";
+    pass=$ok;
+    cpuinst_info="$(system_scan_check_cpu_instructions)";
+    [[ "$cpuinst_info" != *Missing* ]] || pass="${nok/MSG/Check CPU}";
+    echo -e "CPU|$cpuinst_info|$pass";
+    [ "$pass" = "$ok" ] || echo -e "@@HIGHLIGHT CPU|$cpuinst_info|$pass";
+    for accel in $(lspci -d 8086::0300 -n | cut -f3 -d' ');
+    do
+        pass=$ok;
+        accel_info="$(system_scan_check_pci_device $accel "Intel Integrated Graphics")";
+        if [ -n "$accel_info" ]; then
+            [[ "$accel_info" = *driver* ]] || pass="${nok/MSG/Missing Driver}";
+            echo -e "GPU|$accel_info|$pass";
+            [ "$pass" = "$ok" ] || echo -e "@@HIGHLIGHT GPU|$accel_info|$pass" 1>&2;
+        fi;
+    done;
+    for accel in $(lspci -d 8086::1200 -n | cut -f3 -d' ');
+    do
+        pass=$ok;
+        accel_info="$(system_scan_check_pci_device $accel "Intel AI Boost")";
+        if [ -n "$accel_info" ]; then
+            [[ "$accel_info" = *driver* ]] || pass="${nok/MSG/Missing Driver}";
+            echo -e "NPU|$accel_info|$pass";
+            [ "$pass" = "$ok" ] || echo -e "@@HIGHLIGHT NPU|$accel_info|$pass" 1>&2;
+        fi;
+    done;
+    echo "----------------------------------------------------------------";
+    [ "$net_pass" = "$ok" ] ) | ensure_columns
+}
 remove_geti () 
 { 
     stop_geti "$@";
@@ -7805,7 +7876,7 @@ subcommand_remove ()
 subcommand_setup () 
 { 
     [[ " $* " != *" --help "* ]] || return;
-    local installer_misc_functions=(system_scan_check_cpu_instructions system_scan_check_docker system_scan_check_membank system_scan_check_network_access system_scan_check_pci_device system_scan_get_system_summary system_scan_summary_report test_anomalib test_dlstreamer_pipeline test_openvino uninstall_k3s_edge_node_infrastructure_blueprint);
+    local installer_misc_functions=(system_scan_check_cpu_instructions system_scan_check_docker system_scan_check_membank system_scan_check_network_access system_scan_check_pci_device system_scan_get_system_summary test_anomalib test_dlstreamer_pipeline test_openvino uninstall_k3s_edge_node_infrastructure_blueprint);
     mkdir -p "$(dirname "$installer_bin")";
     cat > "$installer_bin" <<EOF
 #!/bin/bash
@@ -8025,72 +8096,6 @@ system_scan_get_system_summary ()
     [[ "$meminfo" != *kB ]] || meminfo="$(( ${meminfo%kB} / 1024 / 1024 ))GB";
     [[ "$meminfo" != *mB ]] || meminfo="$(( ${meminfo%mB} / 1024 ))GB";
     echo "$cpuinfo · $coreinfo · $meminfo RAM"
-}
-system_scan_summary_report () 
-{ 
-    set -o pipefail;
-    ( echo "----------------------------------------------------------------";
-    ok="${green}✓  PASS${reset}";
-    nok="${red}⚠  MSG${reset}";
-    system_summary="$(system_scan_get_system_summary)";
-    echo "System|$system_summary";
-    pass=$ok;
-    membank_info="$(ensure_prop get installed/pre_system_scan/membank)";
-    [ -n "$membank_info" ] || membank_info="$(system_scan_check_membank)";
-    [ -z "$membank_info" ] || ensure_prop set installed/pre_system_scan/membank "$membank_info";
-    [ "$membank_info" = "DUAL/MULTI-CHANNELS" ] || pass="${nok/MSG/Check Memory}";
-    echo -e "RAM|$membank_info|$pass";
-    [ "$pass" = "$ok" ] || echo -e "@@HIGHLIGHT RAM|$membank_info|$pass" 1>&2;
-    case "$PRETTY_NAME" in 
-        *"24.04"* | *"26.04"* | *"Red Hat Enterprise"*)
-            pass=$ok
-        ;;
-        *)
-            pass="${nok/MSG/Not supported}"
-        ;;
-    esac;
-    echo -e "OS|$PRETTY_NAME|$pass";
-    [ "$pass" = "$ok" ] || echo -e "@@HIGHLIGHT OS|$PRETTY_NAME|$pass" 1>&2;
-    pass=$ok;
-    docker_ver="$(system_scan_check_docker)";
-    [[ "$docker_ver" = *Compose* ]] || pass="${nok/MSG/Missing Docker Compose}";
-    [ -n "$docker_ver" ] || pass="${nok} Missing Docker";
-    echo -e "Docker|$docker_ver|$pass";
-    [ "$pass" = "$ok" ] || echo -e "@@HIGHLIGHT Docker|$docker_ver|$pass" 1>&2;
-    net_pass=$ok;
-    net_access="$(system_scan_check_network_access)";
-    [[ "$net_access" = *reachable* ]] || net_pass="${nok/MSG/Check Proxies}";
-    echo -e "Network|$net_access|$net_pass";
-    [ "$net_pass" = "$ok" ] || echo -e "@@HIGHLIGHT Network|$net_access|$net_pass" 1>&2;
-    echo;
-    echo "Accelerators:";
-    pass=$ok;
-    cpuinst_info="$(system_scan_check_cpu_instructions)";
-    [[ "$cpuinst_info" != *Missing* ]] || pass="${nok/MSG/Check CPU}";
-    echo -e "CPU|$cpuinst_info|$pass";
-    [ "$pass" = "$ok" ] || echo -e "@@HIGHLIGHT CPU|$cpuinst_info|$pass";
-    for accel in $(lspci -d 8086::0300 -n | cut -f3 -d' ');
-    do
-        pass=$ok;
-        accel_info="$(system_scan_check_pci_device $accel "Intel Integrated Graphics")";
-        if [ -n "$accel_info" ]; then
-            [[ "$accel_info" = *driver* ]] || pass="${nok/MSG/Missing Driver}";
-            echo -e "GPU|$accel_info|$pass";
-            [ "$pass" = "$ok" ] || echo -e "@@HIGHLIGHT GPU|$accel_info|$pass" 1>&2;
-        fi;
-    done;
-    for accel in $(lspci -d 8086::1200 -n | cut -f3 -d' ');
-    do
-        pass=$ok;
-        accel_info="$(system_scan_check_pci_device $accel "Intel AI Boost")";
-        if [ -n "$accel_info" ]; then
-            [[ "$accel_info" = *driver* ]] || pass="${nok/MSG/Missing Driver}";
-            echo -e "NPU|$accel_info|$pass";
-            [ "$pass" = "$ok" ] || echo -e "@@HIGHLIGHT NPU|$accel_info|$pass" 1>&2;
-        fi;
-    done;
-    echo "----------------------------------------------------------------";
-    [ "$net_pass" = "$ok" ] ) | ensure_columns
 }
 test_anomalib () 
 { 
